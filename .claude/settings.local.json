@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run lint)",
+      "Bash(timeout 15 npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(dir:*)",
+      "Bash(node:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(python:*)",
+      "Bash(npx supabase db diff:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(if [ -f .gitignore ])",
+      "Bash(then echo \"✓ .gitignore exists\")",
+      "Bash(else echo \"✗ .gitignore NOT FOUND\")",
+      "Bash(fi)",
+      "Bash(if [ -f README.md ])",
+      "Bash(then echo \"✓ README.md exists\")",
+      "Bash(else echo \"✗ README.md NOT FOUND\")",
+      "Bash(ls:*)",
+      "Bash(identify:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

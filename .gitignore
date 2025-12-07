@@ -1,0 +1,33 @@
+# Next.js
+.next
+node_modules
+dist
+
+# Environment Variables
+.env.local
+.env
+
+# PWA Generated Files
+public/sw.js
+public/workbox-*.js
+public/worker-*.js
+public/fallback-*.js
+
+# Lock Files
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# User Data (DO NOT COMMIT)
+data/
+image/
+
+# Build Info
+tsconfig.tsbuildinfo
+
+# Temporary Files
+nul
+*.tmp
+
+# Test Output
+test-output.css
