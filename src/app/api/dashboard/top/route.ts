@@ -21,8 +21,6 @@ type TopPlatformRow = {
   qty: number;
 };
 
-const BATCH_SIZE = 1000;
-
 export async function GET(req: Request) {
   if (!supabaseAdmin) {
     return NextResponse.json({ error: "Supabase is not configured" }, { status: 500 });
@@ -33,118 +31,93 @@ export async function GET(req: Request) {
   const start = searchParams.get("start");
   const end = searchParams.get("end");
 
+  const client = supabaseAdmin!;
+
+  const applyFilters = <T>(query: T) => {
+    let q = query as any;
+    if (platformParam && platformParam !== "all") {
+      const variants = [
+        platformParam,
+        platformParam.toLowerCase(),
+        platformParam.toUpperCase()
+      ];
+      q = q.in("platform", variants);
+    }
+    if (start) {
+      q = q.gte("created_at", start);
+    }
+    if (end) {
+      q = q.lte("created_at", end);
+    }
+    return q as typeof query;
+  };
+
   try {
-    const productsMap = new Map<string, TopProduct>();
-    const provincesMap = new Map<string, { revenue: number; qty: number }>();
-    const platformVariantMap = new Map<string, Map<string, { variant: string; revenue: number; qty: number }>>();
-
-    let offset = 0;
-    let hasMore = true;
-
-    while (hasMore) {
-      let query = supabaseAdmin
+    // Top 5 products (server-side aggregate to avoid timeouts)
+    const productQuery = applyFilters(
+      client
         .from("product_sales")
-        .select("product_name,variant_name,platform,qty_confirmed,qty_returned,revenue_confirmed_thb,province_normalized,created_at")
-        .order("created_at", { ascending: false })
-        .range(offset, offset + BATCH_SIZE - 1);
+        .select<any>(`
+          name:product_name,
+          variant:variant_name,
+          revenue:sum.revenue_confirmed_thb,
+          qty:sum.qty_confirmed,
+          returned:sum.qty_returned,
+          latest_at:max.created_at
+        `)
+        .order("revenue", { ascending: false })
+        .limit(5)
+    );
 
-      if (platformParam && platformParam !== "all") {
-        const variants = [
-          platformParam,
-          platformParam.toLowerCase(),
-          platformParam.toUpperCase()
-        ];
-        query = query.in("platform", variants);
-      }
-      if (start) {
-        query = query.gte("created_at", start);
-      }
-      if (end) {
-        query = query.lte("created_at", end);
-      }
-
-      const { data, error } = await query;
-      if (error) {
-        console.error("❌ top-products query error:", error);
-        return NextResponse.json({ error: "ไม่สามารถดึงข้อมูลยอดขายสินค้าได้" }, { status: 500 });
-      }
-
-      if (!data || data.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      data.forEach((row) => {
-        const name = row.product_name || row.variant_name || "ไม่ระบุสินค้า";
-        const variant = row.variant_name || name;
-        const key = `${name}|${variant}`;
-        const revenue = Number(row.revenue_confirmed_thb ?? 0);
-        const qty = Number(row.qty_confirmed ?? 0);
-        const returned = Number(row.qty_returned ?? 0);
-        const platformValue = row.platform || "unknown";
-        const createdAt = row.created_at as string | null;
-
-        if (!productsMap.has(key)) {
-          productsMap.set(key, {
-            name,
-            variant,
-            revenue: 0,
-            qty: 0,
-            returned: 0,
-            platforms: [],
-            latest_at: createdAt ?? null,
-            image_url: null
-          });
-        }
-        const item = productsMap.get(key)!;
-        item.revenue += revenue;
-        item.qty += qty;
-        item.returned += returned;
-        if (createdAt && (!item.latest_at || new Date(createdAt) > new Date(item.latest_at))) {
-          item.latest_at = createdAt;
-        }
-        if (platformValue && !item.platforms.includes(platformValue)) {
-          item.platforms.push(platformValue);
-        }
-
-        const province = row.province_normalized || "ไม่ระบุจังหวัด";
-        if (!provincesMap.has(province)) {
-          provincesMap.set(province, { revenue: 0, qty: 0 });
-        }
-        const p = provincesMap.get(province)!;
-        p.revenue += revenue;
-        p.qty += qty;
-
-        // เก็บ top รายแพลตฟอร์มแบบไม่ปนกัน
-        if (!platformVariantMap.has(platformValue)) {
-          platformVariantMap.set(platformValue, new Map());
-        }
-        const platformMap = platformVariantMap.get(platformValue)!;
-        const variantKey = variant || name;
-        if (!platformMap.has(variantKey)) {
-          platformMap.set(variantKey, { variant: variantKey, revenue: 0, qty: 0 });
-        }
-        const stat = platformMap.get(variantKey)!;
-        stat.revenue += revenue;
-        stat.qty += qty;
-      });
-
-      if (data.length < BATCH_SIZE) {
-        hasMore = false;
-      } else {
-        offset += BATCH_SIZE;
-      }
+    const { data: productAgg, error: productError } = await productQuery;
+    if (productError) {
+      console.error("❌ top-products aggregate error:", productError);
+      return NextResponse.json({ error: "ไม่สามารถดึงข้อมูลยอดขายสินค้าได้" }, { status: 500 });
     }
 
-    const allProducts = Array.from(productsMap.values());
-    const topProducts = allProducts
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+    const topProducts: TopProduct[] = (productAgg ?? []).map((row: any) => ({
+      name: row.name || row.variant || "ไม่ระบุสินค้า",
+      variant: row.variant || row.name || "ไม่ระบุสินค้า",
+      revenue: Number(row.revenue ?? 0),
+      qty: Number(row.qty ?? 0),
+      returned: Number(row.returned ?? 0),
+      platforms: [],
+      latest_at: row.latest_at ?? null,
+      image_url: null
+    }));
+
+    // collect platforms per top product
+    if (topProducts.length > 0) {
+      const platformRowsQuery = applyFilters(
+        client
+          .from("product_sales")
+          .select<any>("product_name,variant_name,platform")
+          .in("product_name", topProducts.map((p) => p.name))
+      );
+      const { data: platformRows, error: platformRowsError } = await platformRowsQuery;
+      if (platformRowsError) {
+        console.error("❌ top-products platform aggregation error:", platformRowsError);
+      } else if (platformRows) {
+        const platformMap = new Map<string, Set<string>>();
+        platformRows.forEach((row: any) => {
+          const name = row.product_name || row.variant_name || "ไม่ระบุสินค้า";
+          const variant = row.variant_name || name;
+          const key = `${name}|${variant}`;
+          const platform = row.platform || "unknown";
+          if (!platformMap.has(key)) platformMap.set(key, new Set());
+          platformMap.get(key)!.add(platform);
+        });
+        topProducts.forEach((p) => {
+          const key = `${p.name}|${p.variant}`;
+          p.platforms = Array.from(platformMap.get(key) ?? []);
+        });
+      }
+    }
 
     // Fetch images for top products from product_master
     const productNames = topProducts.map(p => p.name);
     if (productNames.length > 0) {
-      const { data: images } = await supabaseAdmin
+      const { data: images } = await client
         .from("product_master")
         .select("name, image_url")
         .in("name", productNames);
@@ -157,23 +130,62 @@ export async function GET(req: Request) {
       }
     }
 
-    const platforms: (TopPlatformRow | null)[] = ["Shopee", "TikTok", "Lazada"].map((pf) => {
-      const platformRows = platformVariantMap.get(pf);
-      if (!platformRows || platformRows.size === 0) return null;
-      const candidate = Array.from(platformRows.values()).sort((a, b) => b.revenue - a.revenue)[0];
-      return {
-        platform: pf,
-        variant: candidate.variant,
-        revenue: candidate.revenue,
-        qty: candidate.qty
-      } as TopPlatformRow;
-    });
+    // Top variant per platform
+    const platforms: (TopPlatformRow | null)[] = await Promise.all(
+      ["Shopee", "TikTok", "Lazada"].map(async (pf) => {
+        const q = applyFilters(
+          client
+            .from("product_sales")
+            .select<any>(`
+              variant:variant_name,
+              revenue:sum.revenue_confirmed_thb,
+              qty:sum.qty_confirmed
+            `)
+            .in("platform", [pf, pf.toLowerCase(), pf.toUpperCase()])
+            .order("revenue", { ascending: false })
+            .limit(1)
+        );
+        const { data, error } = await q;
+        if (error) {
+          console.error(`❌ top-platform ${pf} aggregate error:`, error);
+          return null;
+        }
+        if (!data || data.length === 0) return null;
+        const row = data[0] as any;
+        return {
+          platform: pf,
+          variant: row.variant || "ยังไม่มีข้อมูล",
+          revenue: Number(row.revenue ?? 0),
+          qty: Number(row.qty ?? 0)
+        } as TopPlatformRow;
+      })
+    );
 
-    const topProvinces = Array.from(provincesMap.entries())
-      .filter(([name]) => name !== "ไม่ระบุจังหวัด")
-      .map(([name, val]) => ({ name, revenue: val.revenue, qty: val.qty }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+    // Top provinces
+    const provinceQuery = applyFilters(
+      client
+        .from("product_sales")
+        .select<any>(`
+          name:province_normalized,
+          revenue:sum.revenue_confirmed_thb,
+          qty:sum.qty_confirmed
+        `)
+        .neq("province_normalized", "ไม่ระบุจังหวัด")
+        .order("revenue", { ascending: false })
+        .limit(5)
+    );
+
+    const { data: provinceAgg, error: provinceError } = await provinceQuery;
+    if (provinceError) {
+      console.error("❌ top-province aggregate error:", provinceError);
+      return NextResponse.json({ error: "ไม่สามารถดึงข้อมูลจังหวัดได้" }, { status: 500 });
+    }
+
+    const topProvinces = (provinceAgg ?? []).map((p: any) => ({
+      name: p.name || "ไม่ระบุจังหวัด",
+      revenue: Number(p.revenue ?? 0),
+      qty: Number(p.qty ?? 0)
+    }));
 
     return NextResponse.json({
       ok: true,
