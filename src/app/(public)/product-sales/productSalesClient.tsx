@@ -464,17 +464,26 @@ export default function ProductSalesClient({ sales }: Props) {
                   {filter === "all" ? (
                     "ทั้งหมด"
                   ) : (
-                    <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <Image
-                        src={`/${filter}.png`}
-                        alt={filter}
-                        width={16}
-                        height={16}
-                        className="object-contain"
-                        unoptimized
-                      />
-                      {filter}
-                    </span>
+                    (() => {
+                      const logoMap: Record<"Shopee" | "TikTok" | "Lazada", string> = {
+                        Shopee: "/Shopee.png",
+                        TikTok: "/tiktok.png",
+                        Lazada: "/Lazada.png"
+                      };
+                      return (
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <Image
+                            src={logoMap[filter]}
+                            alt={filter}
+                            width={16}
+                            height={16}
+                            className="object-contain"
+                            unoptimized
+                          />
+                          {filter}
+                        </span>
+                      );
+                    })()
                   )}
                 </button>
               ))}
@@ -1058,7 +1067,7 @@ type PlatformBadgeProps = {
 function PlatformBadge({ platform, isDark, size = "md" }: PlatformBadgeProps) {
   const logoMap = {
     Shopee: "/Shopee.png",
-    TikTok: "/Tiktok.png",
+    TikTok: "/tiktok.png",
     Lazada: "/Lazada.png"
   };
 

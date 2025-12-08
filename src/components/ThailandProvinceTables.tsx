@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Trophy, MapPin, ChevronLeft, ChevronRight, BarChart3, Eye, X, Package } from "lucide-react";
 
 type ProvinceProduct = {
@@ -36,6 +37,11 @@ export function ThailandProvinceTables({ topProvinces, provinces, search, provin
   const [modalProvince, setModalProvince] = useState<ProvinceSales | null>(null);
   const [modalPage, setModalPage] = useState(1);
   const modalPageSize = 10;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filteredProvinces = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -340,8 +346,8 @@ export function ThailandProvinceTables({ topProvinces, provinces, search, provin
         </div>
       </div>
 
-      {/* Product List Modal - เต็มจอบนมือถือ */}
-      {modalOpen && modalProvince && (
+      {/* Product List Modal - เต็มจอบนมือถือ (portal to body for correct stacking) */}
+      {mounted && modalOpen && modalProvince && createPortal(
         <div
           className="fixed inset-0 z-[9999] md:flex md:items-center md:justify-center md:p-4"
           onClick={closeModal}
@@ -357,7 +363,12 @@ export function ThailandProvinceTables({ topProvinces, provinces, search, provin
             style={{ margin: 0, padding: 0 }}
           >
             {/* Header with gradient */}
-            <div className="relative bg-gradient-to-br from-blue-500 via-cyan-500 to-indigo-500 dark:from-blue-900 dark:via-cyan-900 dark:to-indigo-900 px-4 py-4 md:px-6 md:py-8">
+            <div
+              className="relative bg-gradient-to-br from-blue-500 via-cyan-500 to-indigo-500 dark:from-blue-900 dark:via-cyan-900 dark:to-indigo-900 px-4 py-4 md:px-6 md:py-8"
+              style={{
+                paddingTop: "calc(1rem + var(--safe-area-top, 0px))",
+              }}
+            >
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30" />
 
               <div className="relative flex items-start justify-between gap-2 md:gap-4">
@@ -394,6 +405,10 @@ export function ThailandProvinceTables({ topProvinces, provinces, search, provin
                   onClick={closeModal}
                   className="flex-shrink-0 p-1.5 md:p-2 rounded-lg md:rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-xl text-white transition-all hover:rotate-90 duration-300"
                   aria-label="ปิด"
+                  style={{
+                    marginTop: "calc(var(--safe-area-top, 0px) * 0.25)",
+                    marginRight: "var(--safe-area-right, 0px)",
+                  }}
                 >
                   <X className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
@@ -471,7 +486,10 @@ export function ThailandProvinceTables({ topProvinces, provinces, search, provin
 
             {/* Footer with Pagination */}
             {modalProducts.length > modalPageSize && (
-              <div className="border-t border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 md:px-6 md:py-4">
+              <div
+                className="border-t border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 md:px-6 md:py-4"
+                style={{ paddingBottom: "calc(1rem + var(--safe-area-bottom, 0px))" }}
+              >
                 <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-0">
                   <div className="text-xs md:text-sm text-slate-600 dark:text-slate-300 text-center md:text-left">
                     หน้า <span className="font-bold text-slate-900 dark:text-white">{modalCurrentPage}</span> / {modalPageCount}
@@ -504,7 +522,7 @@ export function ThailandProvinceTables({ topProvinces, provinces, search, provin
             )}
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

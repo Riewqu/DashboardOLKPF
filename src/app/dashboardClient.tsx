@@ -61,7 +61,7 @@ type TopPlatformItem = {
 
 const PLATFORM_META: Record<"Shopee" | "TikTok" | "Lazada", { color: string; logo: string }> = {
   Shopee: { color: "#f97316", logo: "/Shopee.png" },
-  TikTok: { color: "#ef4444", logo: "/Tiktok.png" },
+  TikTok: { color: "#ef4444", logo: "/tiktok.png" },
   Lazada: { color: "#3b82f6", logo: "/Lazada.png" }
 };
 
@@ -732,17 +732,26 @@ function StickyFilterBar({
                   {filter === "all" ? (
                     "ทั้งหมด"
                   ) : (
-                    <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <Image
-                        src={`/${filter}.png`}
-                        alt={filter}
-                        width={16}
-                        height={16}
-                        className="object-contain"
-                        unoptimized
-                      />
-                      {filter}
-                    </span>
+                    (() => {
+                      const logoMap: Record<"TikTok" | "Shopee" | "Lazada", string> = {
+                        TikTok: "/tiktok.png",
+                        Shopee: "/Shopee.png",
+                        Lazada: "/Lazada.png"
+                      };
+                      return (
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <Image
+                            src={logoMap[filter]}
+                            alt={filter}
+                            width={16}
+                            height={16}
+                            className="object-contain"
+                            unoptimized
+                          />
+                          {filter}
+                        </span>
+                      );
+                    })()
                   )}
                 </button>
               ))}
@@ -2710,7 +2719,6 @@ function MonthComparisonChart({
   // Calculate target values for each month
   const targetData = useMemo(() => {
     if (!goals || goals.length === 0) {
-      console.log("📊 No goals data available");
       return null;
     }
 
@@ -2746,7 +2754,6 @@ function MonthComparisonChart({
       }
     });
 
-    console.log("📊 Target data:", targets);
     return Object.keys(targets).length > 0 ? targets : null;
   }, [goals, allMonths]);
 
@@ -3332,7 +3339,7 @@ function MonthComparisonChart({
               <Image
                 src={
                   platform.platform === "Shopee" ? "/Shopee.png" :
-                  platform.platform === "TikTok" ? "/Tiktok.png" :
+                  platform.platform === "TikTok" ? "/tiktok.png" :
                   "/Lazada.png"
                 }
                 alt={platform.platform}
@@ -4113,6 +4120,8 @@ export default function DashboardClient({ platforms, goals }: Props) {
   const [topPlatform, setTopPlatform] = useState<(TopPlatformItem)[]>([]);
   const [topLoading, setTopLoading] = useState(false);
   const [topError, setTopError] = useState<string | null>(null);
+  const topProductsCardRef = useRef<HTMLDivElement | null>(null);
+  const [mapHeight, setMapHeight] = useState<number>(480);
   const [goalYear, setGoalYear] = useState<number>(() => {
     if (goals && goals.length > 0) {
       return Math.max(...goals.map((g) => g.year));
@@ -4126,6 +4135,28 @@ export default function DashboardClient({ platforms, goals }: Props) {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Sync map height with Top 5 block so visuals align
+  useEffect(() => {
+    const el = topProductsCardRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      const h = el.offsetHeight;
+      if (isMobile) {
+        // Keep map compact on small screens so the goals section sits closer
+        const compactHeight = h > 0 ? Math.max(320, Math.min(h, 420)) : 360;
+        setMapHeight(compactHeight);
+        return;
+      }
+      setMapHeight(h > 0 ? h : 480);
+    };
+
+    updateHeight();
+    const resizeObserver = new ResizeObserver(updateHeight);
+    resizeObserver.observe(el);
+    return () => resizeObserver.disconnect();
+  }, [isMobile, topProducts.length]);
 
 
 
@@ -4534,12 +4565,13 @@ export default function DashboardClient({ platforms, goals }: Props) {
         `}</style>
 
         {/* Top Insights */}
-        <div style={{ marginBottom: isMobile ? "1.5rem" : "2.5rem" }}>
+        <div style={{ marginBottom: isMobile ? "0.2rem" : "1.5rem" }}>
           <h2 style={{ fontSize: "clamp(1.125rem, 3vw, 1.5rem)", fontWeight: "700", marginBottom: isMobile ? "0.75rem" : "clamp(1rem, 2vw, 1.5rem)", display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <div style={{ width: "4px", height: "clamp(20px, 4vw, 24px)", borderRadius: "2px", background: "linear-gradient(180deg, #3b82f6 0%, #0ea5e9 100%)" }} />
             <span style={{ color: "var(--text-primary)" }}>Top Insights</span>
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 380px), 1fr))", gap: isMobile ? "0.5rem" : "1.25rem" }}>
+            <div ref={topProductsCardRef} style={{ height: "100%" }}>
             <GlassCard hover isDarkMode={isDarkMode}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: isMobile ? "0.6rem" : "0.75rem", marginBottom: isMobile ? "0.75rem" : "1rem", flexWrap: "wrap" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "0.6rem" : "0.75rem" }}>
@@ -4995,17 +5027,19 @@ export default function DashboardClient({ platforms, goals }: Props) {
                 </div>
               ) : null}
             </GlassCard>
+            </div>
 
-            {/* Thailand Map - Full Width */}
-            <div style={{ width: "100%", marginBottom: isMobile ? "6rem" : "0" }}>
-              {topLoading ? (
-                <SkeletonBox height={isMobile ? "440px" : "480px"} />
-              ) : topError ? (
-                <div style={{ color: "var(--text-tertiary)", fontSize: "0.95rem" }}>{topError}</div>
-              ) : topProvinces.length === 0 ? (
-                <div style={{ color: "var(--text-tertiary)", fontSize: "0.95rem" }}>ยังไม่มีข้อมูลจังหวัด</div>
-              ) : (
-                <div style={{ minHeight: isMobile ? "440px" : "480px", height: isMobile ? "440px" : "480px" }}>
+          {/* Thailand Map - Full Width */}
+          <div style={{ width: "100%", marginBottom: 0 }}>
+            {topLoading ? (
+              <SkeletonBox height={`${mapHeight}px`} />
+            ) : topError ? (
+              <div style={{ color: "var(--text-tertiary)", fontSize: "0.95rem" }}>{topError}</div>
+            ) : topProvinces.length === 0 ? (
+              <div style={{ color: "var(--text-tertiary)", fontSize: "0.95rem" }}>ยังไม่มีข้อมูลจังหวัด</div>
+            ) : (
+              <div style={{ minHeight: `${mapHeight}px`, height: `${mapHeight}px`, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                <div style={{ flex: 1, minHeight: 0 }}>
                   <ThailandMapD3
                     provinces={topProvinceData}
                     annotations={topProvinces.map((p, idx) => ({
@@ -5017,15 +5051,17 @@ export default function DashboardClient({ platforms, goals }: Props) {
                     compact
                   />
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
+
           </div>
         </div>
 
         {/* Goal Overview */}
         {(goals?.length ?? 0) > 0 && (
           <AnimatedSection animation="fade-up" delay={100}>
-            <div style={{ marginBottom: "2rem" }}>
+            <div style={{ marginTop: isMobile ? "15rem" : "1.75rem", marginBottom: "2rem" }}>
               <GoalSection
                 goalYear={goalYear}
                 goalYears={goalYears}

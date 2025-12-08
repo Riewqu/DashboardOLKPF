@@ -104,13 +104,15 @@ export function Modal({ isOpen, onClose, title, children, size = "md", footer, i
                 left: 0 !important;
                 right: 0 !important;
                 bottom: 0 !important;
+                padding-top: var(--safe-area-top, 0px);
+                padding-bottom: var(--safe-area-bottom, 0px);
               }
               .modal-header {
-                padding: 1rem !important;
+                padding: calc(1rem + var(--safe-area-top, 0px)) 1rem 1rem 1rem !important;
                 flex-shrink: 0 !important;
               }
               .modal-body {
-                padding: 1rem !important;
+                padding: 1rem 1rem calc(1rem + var(--safe-area-bottom, 0px)) 1rem !important;
                 overflow-y: auto !important;
                 -webkit-overflow-scrolling: touch !important;
                 flex: 1 !important;

@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const platform = searchParams.get("platform");
+  const platformParam = searchParams.get("platform")?.trim() || null;
   const start = searchParams.get("start");
   const end = searchParams.get("end");
 
@@ -48,8 +48,13 @@ export async function GET(req: Request) {
         .order("created_at", { ascending: false })
         .range(offset, offset + BATCH_SIZE - 1);
 
-      if (platform && platform !== "all") {
-        query = query.eq("platform", platform);
+      if (platformParam && platformParam !== "all") {
+        const variants = [
+          platformParam,
+          platformParam.toLowerCase(),
+          platformParam.toUpperCase()
+        ];
+        query = query.in("platform", variants);
       }
       if (start) {
         query = query.gte("created_at", start);

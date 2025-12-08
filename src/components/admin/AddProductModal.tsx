@@ -114,7 +114,7 @@ export default function AddProductModal({ onClose, onSave }: Props) {
                   Shopee Code
                 </div>
                 <div className="col-span-2 text-sm font-bold text-red-700 flex items-center gap-1">
-                  <img src="/Tiktok.png" alt="TikTok" className="w-4 h-4" />
+                  <img src="/tiktok.png" alt="TikTok" className="w-4 h-4" />
                   TikTok Code
                 </div>
                 <div className="col-span-2 text-sm font-bold text-blue-700 flex items-center gap-1">
@@ -157,7 +157,7 @@ export default function AddProductModal({ onClose, onSave }: Props) {
                     {/* TikTok Code */}
                     <div className="lg:col-span-2">
                       <label className="block lg:hidden text-xs font-bold text-red-700 mb-1 flex items-center gap-1">
-                        <img src="/Tiktok.png" alt="TikTok" className="w-4 h-4" />
+                        <img src="/tiktok.png" alt="TikTok" className="w-4 h-4" />
                         TikTok Code
                       </label>
                       <input

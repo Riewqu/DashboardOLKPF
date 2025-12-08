@@ -741,71 +741,7 @@ export function ThailandMapD3({ provinces, annotations = [], compact = false }: 
             </div>
           </div>
 
-          {/* Professional Legend - Responsive */}
-          <div className="mt-6">
-            <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-cyan-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800 rounded-2xl p-4 sm:p-5 border border-blue-100 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ระดับยอดขาย</h4>
-                <span className="text-xs text-slate-500 dark:text-slate-400">Revenue Scale</span>
-              </div>
-
-              {/* Desktop: 2 rows x 3 columns */}
-              <div className="hidden sm:grid sm:grid-cols-3 gap-2">
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-indigo-200 dark:border-slate-700 hover:shadow-md transition-shadow">
-                  <div className="w-5 h-5 rounded-md flex-shrink-0" style={{ backgroundColor: "#e0e7ff" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">ไม่มีข้อมูล</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-200 dark:border-slate-700 hover:shadow-md transition-shadow">
-                  <div className="w-5 h-5 rounded-md flex-shrink-0" style={{ backgroundColor: "#bfdbfe" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">0-10K</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-300 dark:border-slate-700 hover:shadow-md transition-shadow">
-                  <div className="w-5 h-5 rounded-md flex-shrink-0" style={{ backgroundColor: "#93c5fd" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">10K-30K</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-400 dark:border-slate-700 hover:shadow-md transition-shadow">
-                  <div className="w-5 h-5 rounded-md flex-shrink-0" style={{ backgroundColor: "#60a5fa" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">30K-50K</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-500 dark:border-slate-700 hover:shadow-md transition-shadow">
-                  <div className="w-5 h-5 rounded-md flex-shrink-0" style={{ backgroundColor: "#3b82f6" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">50K-100K</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-600 dark:border-slate-700 hover:shadow-md transition-shadow">
-                  <div className="w-5 h-5 rounded-md flex-shrink-0" style={{ backgroundColor: "#1e40af" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">100K+</span>
-                </div>
-              </div>
-
-              {/* Mobile: Compact horizontal scroll */}
-              <div className="sm:hidden flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-indigo-200 dark:border-slate-700 flex-shrink-0">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "#e0e7ff" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">ไม่มี</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-200 dark:border-slate-700 flex-shrink-0">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "#bfdbfe" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">0-10K</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-300 dark:border-slate-700 flex-shrink-0">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "#93c5fd" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">10K-30K</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-400 dark:border-slate-700 flex-shrink-0">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "#60a5fa" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">30K-50K</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-500 dark:border-slate-700 flex-shrink-0">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "#3b82f6" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">50K-100K</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900/60 px-3 py-2 rounded-lg border border-blue-600 dark:border-slate-700 flex-shrink-0">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "#1e40af" }}></div>
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">100K+</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Legend intentionally removed on Dashboard view */}
         </div>
       </div>
 

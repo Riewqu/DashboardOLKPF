@@ -286,9 +286,9 @@ function CarouselMonthView({
       <div
         style={{
           position: "fixed",
-          top: "1rem",
-          left: "1rem",
-          right: "1rem",
+          top: "calc(1rem + var(--safe-area-top, 0px))",
+          left: "calc(1rem + var(--safe-area-left, 0px))",
+          right: "calc(1rem + var(--safe-area-right, 0px))",
           zIndex: 10001,
           display: "flex",
           gap: "0.25rem",
@@ -323,8 +323,8 @@ function CarouselMonthView({
         onClick={onClose}
         style={{
           position: "fixed",
-          top: "1.5rem",
-          right: "1.5rem",
+          top: "calc(1.5rem + var(--safe-area-top, 0px))",
+          right: "calc(1.5rem + var(--safe-area-right, 0px))",
           zIndex: 10002,
           width: "40px",
           height: "40px",

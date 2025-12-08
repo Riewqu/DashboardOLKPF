@@ -139,7 +139,7 @@ export default function EditProductModal({ product, onClose, onSave, onImageUpda
             {/* TikTok */}
             <div className="bg-red-50/50 rounded-xl p-4 border border-red-200">
               <label className="flex items-center gap-2 text-sm font-semibold text-red-700 mb-2">
-                <img src="/Tiktok.png" alt="TikTok" className="w-5 h-5" />
+                <img src="/tiktok.png" alt="TikTok" className="w-5 h-5" />
                 TikTok Code
               </label>
               <input
