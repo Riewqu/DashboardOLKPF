@@ -7,7 +7,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
     <div>
       <ThemeBridge />
       <NavbarPublic />
-      <div style={{ paddingTop: "64px" }}>
+      <div style={{ paddingTop: "calc(64px + var(--safe-area-top))" }}>
         {children}
       </div>
     </div>

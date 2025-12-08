@@ -63,7 +63,10 @@ export default function NavbarPublic() {
   }, []);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+      style={{ paddingTop: "var(--safe-area-top)" }}
+    >
       <div
         className="absolute inset-0 border-b shadow-sm"
         style={{
@@ -183,8 +186,9 @@ export default function NavbarPublic() {
 
       {isOpen && (
         <div
-          className="absolute top-16 left-0 right-0 md:hidden shadow-lg animate-slide-down backdrop-blur-xl border-b"
+          className="absolute left-0 right-0 md:hidden shadow-lg animate-slide-down backdrop-blur-xl border-b"
           style={{
+            top: "calc(64px + var(--safe-area-top))",
             background: isDark ? "rgba(10, 14, 26, 0.95)" : "rgba(255,255,255,0.95)",
             borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(226, 232, 240, 1)"
           }}

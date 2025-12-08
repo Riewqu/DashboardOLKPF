@@ -463,39 +463,16 @@ function LiquidGlassStoryCard({
   const [displayTarget, setDisplayTarget] = useState(0);
   const [displayActual, setDisplayActual] = useState(0);
   const [displayRemaining, setDisplayRemaining] = useState(0);
+  const [tick, setTick] = useState(0); // bump to re-trigger CSS-only keyframes
 
   // Animate numbers when card becomes active
   useEffect(() => {
-    if (!isActive) {
-      setDisplayTarget(0);
-      setDisplayActual(0);
-      setDisplayRemaining(0);
-      return;
-    }
-
-    const duration = 1200; // 1.2 seconds
-    const steps = 60;
-    const interval = duration / steps;
-
-    let currentStep = 0;
-    const timer = setInterval(() => {
-      currentStep++;
-      const progress = currentStep / steps;
-      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-
-      setDisplayTarget(Math.round(data.target * eased));
-      setDisplayActual(Math.round(data.actual * eased));
-      setDisplayRemaining(Math.round(data.remaining * eased));
-
-      if (currentStep >= steps) {
-        clearInterval(timer);
-        setDisplayTarget(data.target);
-        setDisplayActual(data.actual);
-        setDisplayRemaining(data.remaining);
-      }
-    }, interval);
-
-    return () => clearInterval(timer);
+    if (!isActive) return;
+    // Set values immediately (avoid JS timers) and let CSS handle the pop-in keyframes
+    setDisplayTarget(data.target);
+    setDisplayActual(data.actual);
+    setDisplayRemaining(data.remaining);
+    setTick((t) => t + 1);
   }, [isActive, data.target, data.actual, data.remaining]);
 
   return (
@@ -604,12 +581,12 @@ function LiquidGlassStoryCard({
         </div>
 
         {/* Giant Percentage Circle */}
-        <div
-          style={{
-            position: "relative",
-            width: "240px",
-            height: "240px",
-            display: "flex",
+          <div
+            style={{
+              position: "relative",
+              width: "240px",
+              height: "240px",
+              display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -658,13 +635,15 @@ function LiquidGlassStoryCard({
             }}
           >
             <div
+              key={tick}
               style={{
                 fontSize: "4.5rem",
                 fontWeight: 900,
                 color: statusColor,
                 lineHeight: 1,
                 textShadow: `0 4px 20px ${statusColor}40`,
-                animation: isActive ? "countUp 1.2s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+                animation: isActive ? `countUp 0.9s cubic-bezier(0.4, 0, 0.2, 1)` : "none",
+                willChange: "transform, opacity",
               }}
             >
               {Math.round(data.percent)}%

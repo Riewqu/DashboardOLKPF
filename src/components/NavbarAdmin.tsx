@@ -38,7 +38,10 @@ export default function NavbarAdmin() {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 w-full overflow-visible">
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 w-full overflow-visible"
+      style={{ paddingTop: "var(--safe-area-top)" }}
+    >
       <div className="absolute inset-0 liquid-glass border-b border-white/40 shadow-sm" />
 
       <div className="relative w-full px-3 sm:px-4 md:px-6 lg:px-8 overflow-visible">
@@ -86,7 +89,10 @@ export default function NavbarAdmin() {
       </div>
 
       {isOpen && (
-        <div className="absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-slate-200 md:hidden shadow-lg animate-slide-down" style={{ zIndex: 60, overflow: "visible" }}>
+        <div
+          className="absolute left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-slate-200 md:hidden shadow-lg animate-slide-down"
+          style={{ zIndex: 60, overflow: "visible", top: "calc(64px + var(--safe-area-top))" }}
+        >
           <div className="px-4 py-3 space-y-2">
             {links.map((link) => {
               const isActive = pathname === link.href;

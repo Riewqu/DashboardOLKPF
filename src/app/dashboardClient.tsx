@@ -530,8 +530,8 @@ function StickyFilterBar({
   };
 
   const hasFilters = platformFilter !== "all" || dateStart || dateEnd || dateBasis !== "order";
-  const NAV_OFFSET = 64; // height of navbar
-  const MOBILE_NAV_HEIGHT = 64;
+  const NAV_OFFSET = "calc(64px + var(--safe-area-top))";
+  const MOBILE_NAV_HEIGHT = NAV_OFFSET;
 
   useEffect(() => {
     if (isHidden && isExpanded) setIsExpanded(false);
@@ -562,7 +562,7 @@ function StickyFilterBar({
         <div
           style={{
             position: "fixed",
-            top: `${NAV_OFFSET + 12}px`,
+            top: `calc(${NAV_OFFSET} + 12px)`,
             right: "16px",
             zIndex: 1300,
           }}
@@ -621,7 +621,7 @@ function StickyFilterBar({
           onClick={() => setIsExpanded(false)}
           style={{
             position: "fixed",
-            top: `${isMobile ? MOBILE_NAV_HEIGHT : NAV_OFFSET}px`,
+            top: isMobile ? MOBILE_NAV_HEIGHT : NAV_OFFSET,
             left: 0,
             right: 0,
             bottom: 0,
@@ -637,7 +637,7 @@ function StickyFilterBar({
       <div
         style={{
           position: "fixed",
-          top: `${isMobile ? MOBILE_NAV_HEIGHT : NAV_OFFSET}px`,
+          top: isMobile ? MOBILE_NAV_HEIGHT : NAV_OFFSET,
           left: 0,
           right: 0,
           zIndex: 1200,
