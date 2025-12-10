@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseClient";
+import { requireAuth, requireAdmin } from "@/lib/auth/apiHelpers";
 
 const VALID_PLATFORMS = ["all", "TikTok", "Shopee", "Lazada"];
 const VALID_TYPES = ["revenue", "profit"];
 
 export async function GET(req: Request) {
+  // 🔒 Authentication required (viewer + admin can view goals)
+  const auth = await requireAuth();
+  if (!auth.success) return auth.response;
+
   if (!supabaseAdmin) {
     return NextResponse.json({ error: "Supabase is not configured" }, { status: 500 });
   }
@@ -31,6 +36,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // 🔒 Admin authentication required (only admin can create/edit goals)
+  const auth = await requireAdmin();
+  if (!auth.success) return auth.response;
+
   if (!supabaseAdmin) {
     return NextResponse.json({ error: "Supabase is not configured" }, { status: 500 });
   }

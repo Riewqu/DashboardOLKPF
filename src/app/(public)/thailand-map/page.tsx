@@ -34,14 +34,17 @@ type SalesByProvinceData = {
   topProvinces: ProvinceSales[];
 };
 
-async function fetchSalesByProvince(): Promise<SalesByProvinceData> {
+async function fetchSalesByProvince(startDate: string | null, endDate: string | null): Promise<SalesByProvinceData> {
   if (!supabaseAdmin) {
     console.error("Supabase admin client is not configured");
     return { totalProvinces: 0, maxProvinces: TOTAL_PROVINCES, coverage: 0, provinces: [], topProvinces: [] };
   }
 
   try {
-    const { data, error } = await supabaseAdmin.rpc("get_sales_by_province_with_products");
+    const { data, error } = await supabaseAdmin.rpc("get_sales_by_province_with_products", {
+      p_start_date: startDate ?? undefined,
+      p_end_date: endDate ?? undefined
+    });
     if (error) {
       console.error("RPC get_sales_by_province_with_products failed:", error);
       return { totalProvinces: 0, maxProvinces: TOTAL_PROVINCES, coverage: 0, provinces: [], topProvinces: [] };
@@ -109,10 +112,18 @@ async function fetchSalesByProvince(): Promise<SalesByProvinceData> {
   }
 }
 
-export default async function ThailandMapPage() {
-  const salesData = await fetchSalesByProvince();
+type PageProps = {
+  searchParams: { [key: string]: string | string[] | undefined };
+};
+
+export default async function ThailandMapPage({ searchParams }: PageProps) {
+  // Extract date parameters from URL
+  const startDate = typeof searchParams.start_date === "string" ? searchParams.start_date : null;
+  const endDate = typeof searchParams.end_date === "string" ? searchParams.end_date : null;
+
+  const salesData = await fetchSalesByProvince(startDate, endDate);
 
   return (
-    <ThailandMapClient salesData={salesData} />
+    <ThailandMapClient salesData={salesData} initialStartDate={startDate} initialEndDate={endDate} />
   );
 }

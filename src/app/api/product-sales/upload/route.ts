@@ -11,6 +11,7 @@ import {
 import { type ProvinceAliasMap, type ThaiProvince } from "@/lib/provinceMapper";
 import { supabaseAdmin } from "@/lib/supabaseClient";
 import type { Json } from "@/lib/database.types";
+import { requireAdmin } from "@/lib/auth/apiHelpers";
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB to support large TikTok spreadsheets without splitting
 const INSERT_BATCH = 500;
@@ -24,6 +25,10 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 export async function POST(req: Request) {
+  // 🔒 Admin authentication required
+  const auth = await requireAdmin();
+  if (!auth.success) return auth.response;
+
   if (!supabaseAdmin) {
     return NextResponse.json({ error: "Supabase ยังไม่ถูกตั้งค่า" }, { status: 500 });
   }
@@ -107,6 +112,7 @@ export async function POST(req: Request) {
       order_id: row.orderId ?? null,
       province_raw: row.provinceRaw ?? null,
       province_normalized: row.provinceNormalized ?? null,
+      order_date: row.orderDate ?? null,
       upload_id: uploadId,
       raw_data: row.raw as unknown as Json,
       created_at: new Date().toISOString()

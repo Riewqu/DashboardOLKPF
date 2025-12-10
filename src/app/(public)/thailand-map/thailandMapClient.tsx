@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { ThailandMapD3 } from "@/components/ThailandMapD3";
 import { ThailandProvinceTables } from "@/components/ThailandProvinceTables";
 import { GlassBackdrop } from "@/components/GlassBackdrop";
 import { AnimatedSection } from "@/components/AnimatedSection";
+import DateRangePicker from "@/components/DateRangePicker";
 
 type ProvinceProduct = {
   sku: string;
@@ -32,9 +34,12 @@ type SalesByProvinceData = {
 
 type ThailandMapClientProps = {
   salesData: SalesByProvinceData;
+  initialStartDate: string | null;
+  initialEndDate: string | null;
 };
 
-export function ThailandMapClient({ salesData }: ThailandMapClientProps) {
+export function ThailandMapClient({ salesData, initialStartDate, initialEndDate }: ThailandMapClientProps) {
+  const router = useRouter();
   const [isDark, setIsDark] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [filterExpanded, setFilterExpanded] = useState(false);
@@ -43,6 +48,10 @@ export function ThailandMapClient({ salesData }: ThailandMapClientProps) {
   const [search, setSearch] = useState("");
   const [provinceFilter, setProvinceFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"revenue" | "qty" | "product">("revenue");
+  const [dateRange, setDateRange] = useState<{ startDate: string | null; endDate: string | null }>({
+    startDate: initialStartDate,
+    endDate: initialEndDate,
+  });
 
   const hasTopProvinces = salesData.topProvinces.length > 0;
   const hasProvinceList = salesData.provinces.length > 0;
@@ -81,6 +90,14 @@ export function ThailandMapClient({ salesData }: ThailandMapClientProps) {
   }, []);
 
   // Toggle Dark Mode
+  // Handle date range apply
+  const handleDateApply = () => {
+    const params = new URLSearchParams();
+    if (dateRange.startDate) params.set("start_date", dateRange.startDate);
+    if (dateRange.endDate) params.set("end_date", dateRange.endDate);
+    router.push(`/thailand-map${params.toString() ? `?${params.toString()}` : ""}`);
+  };
+
   const toggleDarkMode = () => {
     const newMode = !isDark;
     setIsDark(newMode);
@@ -94,12 +111,15 @@ export function ThailandMapClient({ salesData }: ThailandMapClientProps) {
     setSearch("");
     setProvinceFilter("all");
     setSortBy("revenue");
+    setDateRange({ startDate: null, endDate: null });
+    router.push("/thailand-map");
   };
 
-  const hasFilters = search || provinceFilter !== "all" || sortBy !== "revenue";
+  const hasFilters = search || provinceFilter !== "all" || sortBy !== "revenue" || dateRange.startDate || dateRange.endDate;
   const NAV_OFFSET = 64;
   const MOBILE_NAV_HEIGHT = 64;
   const HIDE_OFFSET = 80;
+  const PANEL_WIDTH = "min(460px, 92vw)";
   const overlayVisible = filterExpanded;
 
   // Province options for dropdown
@@ -158,7 +178,7 @@ export function ThailandMapClient({ salesData }: ThailandMapClientProps) {
                   fontWeight: 700,
                 }}
               >
-                {[search ? 1 : 0, provinceFilter !== "all" ? 1 : 0, sortBy !== "revenue" ? 1 : 0].reduce((a, b) => a + b, 0)}
+                {[search ? 1 : 0, provinceFilter !== "all" ? 1 : 0, sortBy !== "revenue" ? 1 : 0, dateRange.startDate || dateRange.endDate ? 1 : 0].reduce((a, b) => a + b, 0)}
               </span>
             )}
             {filterExpanded ? (
@@ -192,32 +212,42 @@ export function ThailandMapClient({ salesData }: ThailandMapClientProps) {
         />
       )}
 
-      {/* Slide-down Filter Panel */}
+      {/* Slide / Drawer Filter Panel */}
       <div
         style={{
           position: "fixed",
           top: `${isMobile ? MOBILE_NAV_HEIGHT : NAV_OFFSET}px`,
-          left: 0,
           right: 0,
+          left: isMobile ? 0 : "auto",
+          width: isMobile ? "100%" : PANEL_WIDTH,
+          height: isMobile ? "auto" : `calc(100% - ${NAV_OFFSET}px)`,
           zIndex: 1200,
-          transform: overlayVisible ? "translateY(0)" : `translateY(calc(-100% - ${HIDE_OFFSET}px))`,
+          transform: overlayVisible
+            ? "translateX(0)"
+            : isMobile
+              ? `translateY(calc(-100% - ${HIDE_OFFSET}px))`
+              : "translateX(110%)",
           opacity: overlayVisible ? 1 : 0,
           visibility: overlayVisible ? "visible" : "hidden",
-          transition: "transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "transform 0.32s cubic-bezier(0.33, 1, 0.68, 1)",
           pointerEvents: overlayVisible ? "auto" : "none",
         }}
       >
         <div style={{
           padding: "1.5rem",
-          maxWidth: "1600px",
-          margin: "0 auto",
+          maxWidth: isMobile ? "1600px" : PANEL_WIDTH,
+          margin: isMobile ? "0 auto" : "0 0 0 auto",
           background: isDark
             ? "linear-gradient(135deg, rgba(15, 20, 32, 0.98) 0%, rgba(10, 14, 26, 0.98) 100%)"
             : "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)",
-          backdropFilter: "blur(20px)",
+          backdropFilter: "blur(24px)",
           borderBottom: isDark ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(0, 0, 0, 0.08)",
-          boxShadow: isDark ? "0 12px 32px rgba(0, 0, 0, 0.35)" : "0 12px 32px rgba(0, 0, 0, 0.12)",
-          borderRadius: "0 0 20px 20px",
+          boxShadow: isDark
+            ? "0 20px 60px rgba(0,0,0,0.55), 0 0 30px rgba(59,130,246,0.15)"
+            : "0 20px 60px rgba(59,130,246,0.18), 0 0 30px rgba(14,165,233,0.16)",
+          borderRadius: isMobile ? "0 0 20px 20px" : "24px 0 0 24px",
+          overflowY: "auto",
+          maxHeight: isMobile ? undefined : `calc(100vh - ${NAV_OFFSET}px - 12px)`,
         }}>
           {/* Header with Theme Toggle */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", gap: "1rem", flexWrap: "wrap" }}>
@@ -296,6 +326,18 @@ export function ThailandMapClient({ salesData }: ThailandMapClientProps) {
                 color: isDark ? "#f1f5f9" : "#1e293b",
                 fontSize: "0.875rem",
               }}
+            />
+          </div>
+
+          {/* Date Range Filter */}
+          <div style={{ marginBottom: "1.5rem" }}>
+            <label style={{ fontSize: "0.875rem", color: isDark ? "#94a3b8" : "#64748b", marginBottom: "0.75rem", display: "block" }}>ช่วงวันที่</label>
+            <DateRangePicker
+              value={dateRange}
+              onChange={setDateRange}
+              onApply={handleDateApply}
+              label="เลือกช่วงวันที่"
+              isDark={isDark}
             />
           </div>
 

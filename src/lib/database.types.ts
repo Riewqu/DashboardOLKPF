@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       column_mappings: {
         Row: {
           category: string
@@ -74,6 +115,33 @@ export type Database = {
           type?: string
           updated_at?: string | null
           year?: number
+        }
+        Relationships: []
+      }
+      login_attempts: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          id: string
+          ip_address: string
+          locked_until: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          id?: string
+          ip_address: string
+          locked_until?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string | null
+          id?: string
+          ip_address?: string
+          locked_until?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -204,6 +272,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          order_date: string | null
           order_id: string | null
           platform: string
           product_name: string
@@ -221,6 +290,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          order_date?: string | null
           order_id?: string | null
           platform?: string
           product_name: string
@@ -238,6 +308,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          order_date?: string | null
           order_id?: string | null
           platform?: string
           product_name?: string
@@ -448,6 +519,91 @@ export type Database = {
         }
         Relationships: []
       }
+      user_accounts: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          display_name: string
+          id: string
+          is_active: boolean | null
+          last_login: string | null
+          pin_hash: string
+          role: string
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean | null
+          last_login?: string | null
+          pin_hash: string
+          role: string
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean | null
+          last_login?: string | null
+          pin_hash?: string
+          role?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_accounts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          ip_address: string | null
+          last_activity: string | null
+          token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          last_activity?: string | null
+          token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          last_activity?: string | null
+          token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       platform_metrics_view: {
@@ -463,6 +619,37 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_expired_sessions: { Args: never; Returns: number }
+      cleanup_old_login_attempts: { Args: never; Returns: number }
+      dashboard_top_platforms: {
+        Args: { p_end?: string; p_start?: string }
+        Returns: {
+          platform: string
+          qty: number
+          revenue: number
+          variant: string
+        }[]
+      }
+      dashboard_top_products: {
+        Args: { p_end?: string; p_platform?: string; p_start?: string }
+        Returns: {
+          latest_at: string
+          name: string
+          platforms: string[]
+          qty: number
+          returned: number
+          revenue: number
+          variant_code: string
+        }[]
+      }
+      dashboard_top_provinces: {
+        Args: { p_end?: string; p_platform?: string; p_start?: string }
+        Returns: {
+          name: string
+          qty: number
+          revenue: number
+        }[]
+      }
       get_daily_metrics: {
         Args: {
           p_date_end?: string
@@ -479,6 +666,19 @@ export type Database = {
           transaction_count: number
         }[]
       }
+      get_dashboard_top: {
+        Args: { p_end?: string; p_platform?: string; p_start?: string }
+        Returns: {
+          latest_at: string
+          name: string
+          platforms: string[]
+          province: string
+          qty: number
+          returned: number
+          revenue: number
+          variant_code: string
+        }[]
+      }
       get_sales_by_province: {
         Args: never
         Returns: {
@@ -489,7 +689,7 @@ export type Database = {
         }[]
       }
       get_sales_by_province_with_products: {
-        Args: never
+        Args: { p_end_date?: string; p_start_date?: string }
         Returns: {
           product_count: number
           products: Json

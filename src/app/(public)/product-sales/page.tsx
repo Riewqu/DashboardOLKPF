@@ -5,12 +5,24 @@ import { supabaseAdmin } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProductSalesPage() {
+type PageProps = {
+  searchParams: { [key: string]: string | string[] | undefined };
+};
+
+export default async function ProductSalesPage({ searchParams }: PageProps) {
   if (!supabaseAdmin) {
     return <EmptyState />;
   }
 
-  const sales = await fetchProductSales({ latestUploadsOnly: false });
+  // Extract date parameters from URL
+  const startDate = typeof searchParams.start_date === "string" ? searchParams.start_date : null;
+  const endDate = typeof searchParams.end_date === "string" ? searchParams.end_date : null;
+
+  const sales = await fetchProductSales({
+    latestUploadsOnly: false,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  });
 
   if (!sales || sales.length === 0) {
     return (
@@ -23,5 +35,5 @@ export default async function ProductSalesPage() {
     );
   }
 
-  return <ProductSalesClient sales={sales} />;
+  return <ProductSalesClient sales={sales} initialStartDate={startDate} initialEndDate={endDate} />;
 }

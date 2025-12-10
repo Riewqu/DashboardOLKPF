@@ -5,6 +5,7 @@ import { aggregateTransactions } from "@/lib/metrics";
 import { randomUUID } from "crypto";
 import type { TransactionRow } from "@/lib/transactionParser";
 import type { Database } from "@/lib/database.types";
+import { requireAdmin } from "@/lib/auth/apiHelpers";
 
 const MAX_SIZE = 15 * 1024 * 1024; // 15MB
 const ALLOWED_PLATFORMS = ["TikTok", "Shopee", "Lazada"];
@@ -249,6 +250,10 @@ function aggregateBreakdown(allTx: TxWithRaw[], platform: "TikTok" | "Shopee" | 
 }
 
 export async function POST(req: Request) {
+  // 🔒 Admin authentication required
+  const auth = await requireAdmin();
+  if (!auth.success) return auth.response;
+
   const uploadId = randomUUID();
 
   try {

@@ -22,24 +22,17 @@ const ShieldIcon = (props: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-const MapIcon = (props: SVGProps<SVGSVGElement>) => (
-  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-  </svg>
-);
-
 export default function NavbarAdmin() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
   const links = [
     { href: "/admin", label: "CMS Home", icon: ShieldIcon },
-    { href: "/admin/product-map", label: "Product Map", icon: MapIcon },
   ];
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 w-full overflow-visible"
+      className="hidden md:block fixed top-0 left-0 right-0 z-50 transition-all duration-300 w-full overflow-visible"
       style={{ paddingTop: "var(--safe-area-top)" }}
     >
       <div className="absolute inset-0 liquid-glass border-b border-white/40 shadow-sm" />

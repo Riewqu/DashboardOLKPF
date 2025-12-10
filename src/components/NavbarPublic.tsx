@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type SVGProps } from "react";
+import Image from "next/image";
 import { toggleTheme } from "@/lib/theme";
 import { SunIcon, MoonIcon, FilterIcon } from "@/components/ui/Icons";
 
@@ -64,7 +65,7 @@ export default function NavbarPublic() {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+      className="block fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{ paddingTop: "var(--safe-area-top)" }}
     >
       <div
@@ -79,14 +80,21 @@ export default function NavbarPublic() {
         }}
       />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-2">
+      <div className="relative max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16">
+          <div className="flex items-center gap-2 min-w-0">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
-                D
+              <div className="relative h-10 w-auto sm:h-12">
+                <Image
+                  src="/logokpf.png"
+                  alt="KPF Logo"
+                  width={120}
+                  height={80}
+                  className="h-10 w-auto sm:h-12 object-contain drop-shadow-lg transition-transform duration-200 group-hover:scale-105"
+                  priority
+                />
               </div>
-              <span className="text-lg font-bold">
+              <span className="text-base sm:text-lg font-bold truncate">
                 <span className="text-gradient-premium">Dashboard OL</span>
               </span>
             </Link>

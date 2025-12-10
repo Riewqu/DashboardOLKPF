@@ -2,13 +2,17 @@
 
 import { useMemo, useState, useEffect, type SVGProps } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type { ProductSaleView } from "../../dataClient";
 import { GlassBackdrop } from "@/components/GlassBackdrop";
 import { AnimatedSection } from "@/components/AnimatedSection";
+import DateRangePicker from "@/components/DateRangePicker";
 import * as XLSX from "xlsx";
 
 type Props = {
   sales: ProductSaleView[];
+  initialStartDate: string | null;
+  initialEndDate: string | null;
 };
 
 const currency = (value: number) =>
@@ -80,7 +84,8 @@ const TrendUpIcon = (props: SVGProps<SVGSVGElement>) => (
 );
 
 
-export default function ProductSalesClient({ sales }: Props) {
+export default function ProductSalesClient({ sales, initialStartDate, initialEndDate }: Props) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [hideZero, setHideZero] = useState(false);
   const [sortBy, setSortBy] = useState<"revenue" | "qty">("revenue");
@@ -90,6 +95,10 @@ export default function ProductSalesClient({ sales }: Props) {
   const [platformFilter, setPlatformFilter] = useState<"all" | "Shopee" | "TikTok" | "Lazada">("all");
   const [isMobile, setIsMobile] = useState(false);
   const [filterExpanded, setFilterExpanded] = useState(false);
+  const [dateRange, setDateRange] = useState<{ startDate: string | null; endDate: string | null }>({
+    startDate: initialStartDate,
+    endDate: initialEndDate,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -231,6 +240,14 @@ export default function ProductSalesClient({ sales }: Props) {
     window.dispatchEvent(event);
   };
 
+  // Handle date range apply
+  const handleDateApply = () => {
+    const params = new URLSearchParams();
+    if (dateRange.startDate) params.set("start_date", dateRange.startDate);
+    if (dateRange.endDate) params.set("end_date", dateRange.endDate);
+    router.push(`/product-sales${params.toString() ? `?${params.toString()}` : ""}`);
+  };
+
   // Clear all filters
   const clearFilters = () => {
     setSearch("");
@@ -238,9 +255,11 @@ export default function ProductSalesClient({ sales }: Props) {
     setSortBy("revenue");
     setPlatformFilter("all");
     setPage(1);
+    setDateRange({ startDate: null, endDate: null });
+    router.push("/product-sales");
   };
 
-  const hasFilters = platformFilter !== "all" || search || hideZero || sortBy !== "revenue";
+  const hasFilters = platformFilter !== "all" || search || hideZero || sortBy !== "revenue" || dateRange.startDate || dateRange.endDate;
 
   // Export to Excel
   const handleExport = () => {
@@ -289,6 +308,7 @@ export default function ProductSalesClient({ sales }: Props) {
   const NAV_OFFSET = 64;
   const MOBILE_NAV_HEIGHT = 64;
   const HIDE_OFFSET = 80;
+  const PANEL_WIDTH = "min(460px, 92vw)";
   const overlayVisible = filterExpanded;
 
   return (
@@ -375,32 +395,42 @@ export default function ProductSalesClient({ sales }: Props) {
         />
       )}
 
-      {/* Slide-down Filter Panel */}
+      {/* Slide / Drawer Filter Panel */}
       <div
         style={{
           position: "fixed",
           top: `${isMobile ? MOBILE_NAV_HEIGHT : NAV_OFFSET}px`,
-          left: 0,
           right: 0,
+          left: isMobile ? 0 : "auto",
+          width: isMobile ? "100%" : PANEL_WIDTH,
+          height: isMobile ? "auto" : `calc(100% - ${NAV_OFFSET}px)`,
           zIndex: 1200,
-          transform: overlayVisible ? "translateY(0)" : `translateY(calc(-100% - ${HIDE_OFFSET}px))`,
+          transform: overlayVisible
+            ? "translateX(0)"
+            : isMobile
+              ? `translateY(calc(-100% - ${HIDE_OFFSET}px))`
+              : "translateX(110%)",
           opacity: overlayVisible ? 1 : 0,
           visibility: overlayVisible ? "visible" : "hidden",
-          transition: "transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "transform 0.32s cubic-bezier(0.33, 1, 0.68, 1)",
           pointerEvents: overlayVisible ? "auto" : "none",
         }}
       >
         <div style={{
           padding: "1.5rem",
-          maxWidth: "1600px",
-          margin: "0 auto",
+          maxWidth: isMobile ? "1600px" : PANEL_WIDTH,
+          margin: isMobile ? "0 auto" : "0 0 0 auto",
           background: isDark
             ? "linear-gradient(135deg, rgba(15, 20, 32, 0.98) 0%, rgba(10, 14, 26, 0.98) 100%)"
             : "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)",
-          backdropFilter: "blur(20px)",
+          backdropFilter: "blur(24px)",
           borderBottom: isDark ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(0, 0, 0, 0.08)",
-          boxShadow: isDark ? "0 12px 32px rgba(0, 0, 0, 0.35)" : "0 12px 32px rgba(0, 0, 0, 0.12)",
-          borderRadius: "0 0 20px 20px",
+          boxShadow: isDark
+            ? "0 20px 60px rgba(0,0,0,0.55), 0 0 30px rgba(59,130,246,0.15)"
+            : "0 20px 60px rgba(59,130,246,0.18), 0 0 30px rgba(14,165,233,0.16)",
+          borderRadius: isMobile ? "0 0 20px 20px" : "24px 0 0 24px",
+          overflowY: "auto",
+          maxHeight: isMobile ? undefined : `calc(100vh - ${NAV_OFFSET}px - 12px)`,
         }}>
           {/* Header with Theme Toggle */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", gap: "1rem", flexWrap: "wrap" }}>
@@ -488,6 +518,18 @@ export default function ProductSalesClient({ sales }: Props) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Date Range Filter */}
+          <div style={{ marginBottom: "1.5rem" }}>
+            <label style={{ fontSize: "0.875rem", color: isDark ? "#94a3b8" : "#64748b", marginBottom: "0.75rem", display: "block" }}>ช่วงวันที่</label>
+            <DateRangePicker
+              value={dateRange}
+              onChange={setDateRange}
+              onApply={handleDateApply}
+              label="เลือกช่วงวันที่"
+              isDark={isDark}
+            />
           </div>
 
           {/* Search */}

@@ -1,10 +1,26 @@
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
+import BottomNav from "@/components/BottomNav";
+import AnimatedBackground from "@/components/AnimatedBackground";
+import { getServerSession } from "@/lib/auth/server";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  // Check authentication and admin role
+  const session = await getServerSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  if (session.role !== "admin") {
+    redirect("/"); // Redirect viewers to home
+  }
+
   return (
     <div
+      className="relative"
       style={{
         minHeight: "100vh",
         background: "linear-gradient(135deg, #f5f8ff 0%, #e6f0ff 35%, #f8fbff 100%)",
@@ -19,7 +35,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         ["--surface-secondary" as string]: "#f8fbff"
       }}
     >
+      {/* Animated Background - Only on mobile */}
+      <div className="md:hidden">
+        <AnimatedBackground />
+      </div>
+
       <div
+        className="relative z-10"
         style={{
           width: "100%",
           maxWidth: "min(1600px, 96vw)",
@@ -31,6 +53,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       >
         <div>{children}</div>
       </div>
+      <BottomNav />
     </div>
   );
 }

@@ -140,6 +140,8 @@ type FetchProductSalesOptions = {
   limit?: number;
   platform?: "TikTok" | "Shopee" | "Lazada" | string;
   latestUploadsOnly?: boolean;
+  startDate?: string; // ISO date string (YYYY-MM-DD)
+  endDate?: string; // ISO date string (YYYY-MM-DD)
 };
 
 export async function fetchProductSales(options: FetchProductSalesOptions = {}): Promise<ProductSaleView[]> {
@@ -148,7 +150,7 @@ export async function fetchProductSales(options: FetchProductSalesOptions = {}):
     return [];
   }
 
-  const { limit, platform, latestUploadsOnly = false } = options;
+  const { limit, platform, latestUploadsOnly = false, startDate, endDate } = options;
   const effectiveLimit = typeof limit === "number" && limit > 0 ? limit : undefined;
   const PAGE_SIZE = 1000; // Supabase returns max 1000 rows per request
 
@@ -228,6 +230,8 @@ export async function fetchProductSales(options: FetchProductSalesOptions = {}):
     let query = factory();
     if (platform) query = query.eq("platform", platform);
     if (uploadIds.length > 0) query = query.in("upload_id", uploadIds);
+    if (startDate) query = query.gte("order_date", startDate);
+    if (endDate) query = query.lte("order_date", endDate);
     return query;
   };
 

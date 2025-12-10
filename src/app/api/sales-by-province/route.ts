@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseClient";
 import { TOTAL_PROVINCES } from "@/lib/provinceMapper";
+import { requireAuth } from "@/lib/auth/apiHelpers";
+import { getCacheHeaders } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -28,19 +30,31 @@ type SalesByProvinceResponse = {
   topProvinces: ProvinceSales[];
 };
 
-export async function GET() {
+export async function GET(req: Request) {
+  // 🔒 Authentication required (viewer + admin can view province sales)
+  const auth = await requireAuth();
+  if (!auth.success) return auth.response;
+
   if (!supabaseAdmin) {
     return NextResponse.json({ error: "Supabase is not configured" }, { status: 500 });
   }
 
   try {
+    // Parse date filter parameters
+    const { searchParams } = new URL(req.url);
+    const startDate = searchParams.get('start_date');
+    const endDate = searchParams.get('end_date');
+
     // Use SQL aggregation with products for best performance (< 1s for millions of rows)
-    const { data: aggregatedData, error } = await supabaseAdmin.rpc('get_sales_by_province_with_products');
+    const { data: aggregatedData, error } = await supabaseAdmin.rpc('get_sales_by_province_with_products', {
+      p_start_date: startDate ?? undefined,
+      p_end_date: endDate ?? undefined
+    });
 
     if (error) {
       console.error("❌ Error calling get_sales_by_province_with_products RPC:", error);
       console.log("⚠️ Falling back to row-by-row aggregation...");
-      return await fallbackAggregation();
+      return await fallbackAggregation(startDate, endDate);
     }
 
     if (!aggregatedData || aggregatedData.length === 0) {
@@ -62,21 +76,12 @@ export async function GET() {
       products: row.products || [] // JSONB array from SQL
     })).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
 
-    // Debug: ดู structure ของ products array จาก RPC
-    console.log(`📊 Sample RPC row:`, JSON.stringify(aggregatedData[0], null, 2));
-    if (provincesRaw.length > 0 && provincesRaw[0].products.length > 0) {
-      console.log(`🔬 Sample product from RPC:`, JSON.stringify(provincesRaw[0].products[0], null, 2));
-    }
-
     // Fetch product images from product_master (ดึงทั้งหมดแล้วกรองใน memory เพื่อหลีกเลี่ยง Bad Request)
     const allProductNames = provincesRaw.flatMap(p =>
       p.products.map((prod: ProvinceProduct) => prod.name)
     ).filter(Boolean);
     const uniqueProductNames = [...new Set(allProductNames)];
     const imageMap = new Map<string, string | null>();
-
-    console.log(`🔍 Unique product names to fetch images for: ${uniqueProductNames.length}`);
-    console.log(`📦 Product names:`, uniqueProductNames.slice(0, 10)); // แสดง 10 ตัวแรก
 
     if (uniqueProductNames.length > 0) {
       // ดึงทั้งหมดที่มี image_url แล้วกรองใน memory (หลีกเลี่ยง .in() ที่มีปัญหากับ array ใหญ่)
@@ -95,8 +100,6 @@ export async function GET() {
             imageMap.set(p.name, p.image_url);
           }
         }
-        console.log(`✅ Matched ${imageMap.size} out of ${uniqueProductNames.length} products with images`);
-        console.log(`📸 Sample products with images:`, Array.from(imageMap.entries()).slice(0, 5));
       }
     }
 
@@ -131,7 +134,7 @@ export async function GET() {
 }
 
 // Fallback function for row-by-row aggregation (used if RPC doesn't exist)
-async function fallbackAggregation() {
+async function fallbackAggregation(startDate: string | null, endDate: string | null) {
   if (!supabaseAdmin) {
     return NextResponse.json({ error: "Supabase is not configured" }, { status: 500 });
   }
@@ -144,10 +147,19 @@ async function fallbackAggregation() {
     let hasMore = true;
 
     while (hasMore) {
-      const { data, error } = await supabaseAdmin
+      let query = supabaseAdmin
         .from("product_sales")
-        .select("province_normalized, province_raw, product_name, variant_code, qty_confirmed, revenue_confirmed_thb")
-        .range(offset, offset + BATCH_SIZE - 1);
+        .select("province_normalized, province_raw, product_name, variant_code, qty_confirmed, revenue_confirmed_thb, order_date");
+
+      // Apply date filtering if provided
+      if (startDate) {
+        query = query.gte('order_date', startDate);
+      }
+      if (endDate) {
+        query = query.lte('order_date', endDate);
+      }
+
+      const { data, error } = await query.range(offset, offset + BATCH_SIZE - 1);
 
       if (error) {
         console.error("❌ Error fetching sales by province:", error);
@@ -281,7 +293,9 @@ async function fallbackAggregation() {
     console.log(`💵 Total revenue in response: ${totalRevenueInResponse.toFixed(2)}`);
     console.log(`📍 Provinces in response: ${provinces.map(p => p.name).join(', ')}`);
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: getCacheHeaders({ maxAge: 60, staleWhileRevalidate: 300 })
+    });
   } catch (err) {
     console.error("❌ Unexpected error in sales-by-province:", err);
     const message = err instanceof Error ? err.message : "Unknown error";

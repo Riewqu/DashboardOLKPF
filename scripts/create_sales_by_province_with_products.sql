@@ -2,9 +2,13 @@
 -- SQL Function: get_sales_by_province_with_products
 -- Description: Aggregate sales data by province with product details
 -- Performance: Handles millions of rows in < 1 second
+-- Date Filtering: Supports optional start_date and end_date parameters
 -- ==========================================
 
-CREATE OR REPLACE FUNCTION get_sales_by_province_with_products()
+CREATE OR REPLACE FUNCTION get_sales_by_province_with_products(
+  p_start_date DATE DEFAULT NULL,
+  p_end_date DATE DEFAULT NULL
+)
 RETURNS TABLE (
   province text,
   total_qty bigint,
@@ -16,6 +20,7 @@ BEGIN
   RETURN QUERY
   WITH province_products AS (
     -- Group by province and product_name (รวม TikTok + Shopee)
+    -- Filter by order_date if parameters are provided
     SELECT
       COALESCE(ps.province_normalized, 'ไม่ระบุจังหวัด') as prov,
       ps.product_name,
@@ -23,6 +28,9 @@ BEGIN
       SUM(ps.qty_confirmed) as total_qty_product,
       SUM(ps.revenue_confirmed_thb) as total_revenue_product
     FROM product_sales ps
+    WHERE
+      (p_start_date IS NULL OR ps.order_date >= p_start_date)
+      AND (p_end_date IS NULL OR ps.order_date <= p_end_date)
     GROUP BY COALESCE(ps.province_normalized, 'ไม่ระบุจังหวัด'), ps.product_name
   ),
   province_aggregates AS (
@@ -62,7 +70,15 @@ $$ LANGUAGE plpgsql STABLE;
 -- - This function uses CTE (Common Table Expressions) for clarity
 -- - JSONB aggregation is efficient for returning nested data
 -- - STABLE keyword allows query planner optimization
+-- - Date filtering uses indexes for optimal performance
 -- ==========================================
 
--- Test query (uncomment to test):
--- SELECT * FROM get_sales_by_province_with_products();
+-- Test queries (uncomment to test):
+-- All data:
+-- SELECT * FROM get_sales_by_province_with_products(NULL, NULL);
+
+-- Filter by date range (November 2025):
+-- SELECT * FROM get_sales_by_province_with_products('2025-11-01', '2025-11-30');
+
+-- From specific date onwards:
+-- SELECT * FROM get_sales_by_province_with_products('2025-11-01', NULL);

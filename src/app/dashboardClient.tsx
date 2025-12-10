@@ -538,6 +538,7 @@ function StickyFilterBar({
   }, [isHidden, isExpanded]);
 
   const overlayVisible = isExpanded && !isHidden;
+  const PANEL_WIDTH = "min(460px, 92vw)";
   const HIDE_OFFSET = 80; // extra offset to fully hide panel when collapsed
 
   const [isMobile, setIsMobile] = useState(false);
@@ -633,32 +634,42 @@ function StickyFilterBar({
         />
       )}
 
-      {/* Slide-down Panel */}
+      {/* Slide-down / Drawer Panel */}
       <div
         style={{
           position: "fixed",
           top: isMobile ? MOBILE_NAV_HEIGHT : NAV_OFFSET,
-          left: 0,
           right: 0,
+          left: isMobile ? 0 : "auto",
+          width: isMobile ? "100%" : PANEL_WIDTH,
+          height: isMobile ? "auto" : `calc(100% - ${NAV_OFFSET}px)`,
           zIndex: 1200,
-          transform: overlayVisible ? "translateY(0)" : `translateY(calc(-100% - ${HIDE_OFFSET}px))`,
+          transform: overlayVisible
+            ? "translateX(0)"
+            : isMobile
+              ? `translateY(calc(-100% - ${HIDE_OFFSET}px))`
+              : "translateX(110%)",
           opacity: overlayVisible ? 1 : 0,
           visibility: overlayVisible ? "visible" : "hidden",
-          transition: "transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "transform 0.32s cubic-bezier(0.33, 1, 0.68, 1)",
           pointerEvents: overlayVisible ? "auto" : "none",
         }}
       >
         <div style={{
           padding: "1.5rem",
-          maxWidth: "1600px",
-          margin: "0 auto",
+          maxWidth: isMobile ? "1600px" : PANEL_WIDTH,
+          margin: isMobile ? "0 auto" : "0 0 0 auto",
           background: isDarkMode
             ? "linear-gradient(135deg, rgba(15, 20, 32, 0.98) 0%, rgba(10, 14, 26, 0.98) 100%)"
             : "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)",
-          backdropFilter: "blur(20px)",
+          backdropFilter: "blur(24px)",
           borderBottom: isDarkMode ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(0, 0, 0, 0.08)",
-          boxShadow: isDarkMode ? "0 12px 32px rgba(0, 0, 0, 0.35)" : "0 12px 32px rgba(0, 0, 0, 0.12)",
-          borderRadius: "0 0 20px 20px",
+          boxShadow: isDarkMode
+            ? "0 20px 60px rgba(0, 0, 0, 0.55), 0 0 30px rgba(59,130,246,0.15)"
+            : "0 20px 60px rgba(59,130,246,0.18), 0 0 30px rgba(14,165,233,0.16)",
+          borderRadius: isMobile ? "0 0 20px 20px" : "24px 0 0 24px",
+          overflowY: "auto",
+          maxHeight: isMobile ? undefined : `calc(100vh - ${NAV_OFFSET}px - 12px)`,
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", gap: "1rem", flexWrap: "wrap" }}>
             <div>
@@ -5061,7 +5072,7 @@ export default function DashboardClient({ platforms, goals }: Props) {
         {/* Goal Overview */}
         {(goals?.length ?? 0) > 0 && (
           <AnimatedSection animation="fade-up" delay={100}>
-            <div style={{ marginTop: isMobile ? "15rem" : "1.75rem", marginBottom: "2rem" }}>
+            <div style={{ marginTop: isMobile ? "15rem" : "3.5rem", marginBottom: "2rem" }}>
               <GoalSection
                 goalYear={goalYear}
                 goalYears={goalYears}

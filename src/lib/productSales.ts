@@ -12,6 +12,7 @@ export type ProductSaleRow = {
   qtyReturned?: number;
   provinceRaw?: string | null;
   provinceNormalized?: string | null;
+  orderDate?: string | null; // ISO date string (YYYY-MM-DD)
   raw: Record<string, unknown>;
 };
 
@@ -35,7 +36,8 @@ export const SHOPEE_CODE_COLUMNS = {
   sellerDiscount: "โค้ดส่วนลดชำระโดยผู้ขาย",
   refundStatus: "สถานะการคืนเงินหรือคืนสินค้า",
   refundQty: "จำนวนที่ส่งคืน",
-  province: "จังหวัด" // Optional field
+  province: "จังหวัด", // Optional field
+  createdTime: "วันที่ทำการสั่งซื้อ" // Order date
 } as const;
 
 const SHOPEE_COLUMN_ALIASES: Record<keyof typeof SHOPEE_CODE_COLUMNS, string[]> = {
@@ -47,7 +49,8 @@ const SHOPEE_COLUMN_ALIASES: Record<keyof typeof SHOPEE_CODE_COLUMNS, string[]> 
   sellerDiscount: ["โค้ดส่วนลดชำระโดยผู้ขาย", "Seller Voucher", "Seller Discount"],
   refundStatus: ["สถานะการคืนเงินหรือคืนสินค้า", "Refund/Return Status"],
   refundQty: ["จำนวนที่ส่งคืน", "Return Quantity", "Quantity Returned"],
-  province: ["จังหวัด", "Province", "จังหวัดผู้ซื้อ", "Buyer Province"]
+  province: ["จังหวัด", "Province", "จังหวัดผู้ซื้อ", "Buyer Province"],
+  createdTime: ["วันที่ทำการสั่งซื้อ", "Created Time", "Order Date", "วันที่สั่งซื้อ"]
 };
 
 type ParseOptions = {
@@ -62,6 +65,78 @@ const toNumber = (value: unknown): number => {
   const cleaned = String(value).replace(/[,\s฿$€£¥]/g, "").trim();
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+/**
+ * Parse date from different platform formats
+ * - Shopee: "2025-11-29 18:00" (YYYY-MM-DD HH:mm)
+ * - TikTok: "30/11/2025 12:08:42" (DD/MM/YYYY HH:mm:ss)
+ * - Lazada: "15 Sep 2025 12:09:50" (DD MMM YYYY HH:mm:ss)
+ */
+const parseOrderDate = (value: unknown, platform: "TikTok" | "Shopee" | "Lazada"): string | null => {
+  if (!value) return null;
+
+  // If it's already a Date object (from Excel)
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    const yyyy = value.getFullYear();
+    const mm = String(value.getMonth() + 1).padStart(2, "0");
+    const dd = String(value.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  const str = String(value).trim();
+  if (!str) return null;
+
+  try {
+    if (platform === "Shopee") {
+      // Shopee: "2025-11-29 18:00" → already close to ISO format
+      const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        return `${match[1]}-${match[2]}-${match[3]}`;
+      }
+    } else if (platform === "TikTok") {
+      // TikTok: "30/11/2025 12:08:42" → DD/MM/YYYY
+      const match = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (match) {
+        const dd = match[1].padStart(2, "0");
+        const mm = match[2].padStart(2, "0");
+        const yyyy = match[3];
+        return `${yyyy}-${mm}-${dd}`;
+      }
+    } else if (platform === "Lazada") {
+      // Lazada: "15 Sep 2025 12:09:50" → DD MMM YYYY
+      const monthMap: Record<string, string> = {
+        jan: "01", feb: "02", mar: "03", apr: "04",
+        may: "05", jun: "06", jul: "07", aug: "08",
+        sep: "09", oct: "10", nov: "11", dec: "12"
+      };
+
+      const match = str.match(/^(\d{1,2})\s+([a-z]{3})\s+(\d{4})/i);
+      if (match) {
+        const dd = match[1].padStart(2, "0");
+        const monthAbbr = match[2].toLowerCase();
+        const mm = monthMap[monthAbbr];
+        const yyyy = match[3];
+
+        if (mm) {
+          return `${yyyy}-${mm}-${dd}`;
+        }
+      }
+    }
+
+    // Fallback: try to parse as standard date
+    const date = new Date(str);
+    if (!isNaN(date.getTime())) {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  } catch (err) {
+    console.warn(`⚠️ Failed to parse date: "${str}" for platform ${platform}`, err);
+  }
+
+  return null;
 };
 
 /**
@@ -179,7 +254,7 @@ export function parseShopeeProductSales(
 
   const resolvedHeaders: Record<keyof typeof SHOPEE_CODE_COLUMNS, string> = {} as Record<keyof typeof SHOPEE_CODE_COLUMNS, string>;
   const missing: string[] = [];
-  const optionalColumns = ["province", "orderId"]; // Optional columns that won't cause errors if missing
+  const optionalColumns = ["province", "orderId", "createdTime"]; // Optional columns that won't cause errors if missing
 
   (Object.keys(SHOPEE_COLUMN_ALIASES) as Array<keyof typeof SHOPEE_CODE_COLUMNS>).forEach((col) => {
     const found = SHOPEE_COLUMN_ALIASES[col].find((name) => headerMap.has(normalizeHeader(name)));
@@ -256,6 +331,10 @@ export function parseShopeeProductSales(
       unmappedProvinces.add(provinceRaw);
     }
 
+    // Extract and parse order date
+    const orderDateRaw = resolvedHeaders.createdTime ? row[resolvedHeaders.createdTime] : null;
+    const orderDate = parseOrderDate(orderDateRaw, "Shopee");
+
     products.add(productName);
     variants.add(variantName);
 
@@ -270,6 +349,7 @@ export function parseShopeeProductSales(
       rowNo,
       provinceRaw: provinceRaw || null,
       provinceNormalized: provinceNormalized || null,
+      orderDate: orderDate || null,
       raw: row
     });
   });
@@ -296,7 +376,8 @@ export const TIKTOK_COLUMNS = {
   skuId: "SKU ID",
   quantity: "Quantity",
   returnedQty: "Sku Quantity of return",
-  province: "Province" // Optional field
+  province: "Province", // Optional field
+  createdTime: "Created Time" // Order date
 } as const;
 
 export const TIKTOK_REQUIRED_COLUMNS = [
@@ -320,7 +401,8 @@ const TIKTOK_COLUMN_ALIASES: Record<keyof typeof TIKTOK_COLUMNS, string[]> = {
   skuId: ["SKU ID", "Sku Id", "SkuID"],
   quantity: ["Quantity", "Qty"],
   returnedQty: ["Sku Quantity of return", "SKU Quantity of return", "Quantity of return", "Return Quantity"],
-  province: ["Province", "จังหวัด", "Buyer Province", "Delivery Province"]
+  province: ["Province", "จังหวัด", "Buyer Province", "Delivery Province"],
+  createdTime: ["Created Time", "Create Time", "Order Date", "Created At"]
 };
 
 const TIKTOK_SUBTOTAL_ALIASES = [
@@ -344,14 +426,16 @@ export const LAZADA_COLUMNS = {
   status: "status",
   unitPrice: "unitPrice",
   orderItemId: "orderItemId",
-  sellerSku: "sellerSku"
+  sellerSku: "sellerSku",
+  createTime: "createTime" // Order date
 } as const;
 
 const LAZADA_COLUMN_ALIASES: Record<keyof typeof LAZADA_COLUMNS, string[]> = {
   status: ["status", "Status"],
   unitPrice: ["unitPrice", "Unit Price", "Unit price"],
   orderItemId: ["orderItemId", "Order Item Id", "OrderItemId", "Order Item ID"],
-  sellerSku: ["sellerSku", "Seller SKU", "seller_sku", "SellerSku"]
+  sellerSku: ["sellerSku", "Seller SKU", "seller_sku", "SellerSku"],
+  createTime: ["createTime", "Create Time", "Created Time", "Order Date", "createtime"]
 };
 
 export function parseTikTokProductSales(
@@ -371,7 +455,7 @@ export function parseTikTokProductSales(
 
   const resolveAlias = (aliases: string[]) => aliases.find((name) => headerMap.has(normalizeHeader(name)));
 
-  const optionalTikTokColumns = ["province"]; // Optional columns
+  const optionalTikTokColumns = ["province", "createdTime"]; // Optional columns
 
   (Object.keys(TIKTOK_COLUMN_ALIASES) as Array<keyof typeof TIKTOK_COLUMNS>).forEach((col) => {
     const aliases = TIKTOK_COLUMN_ALIASES[col];
@@ -455,6 +539,10 @@ export function parseTikTokProductSales(
       unmappedProvinces.add(provinceRaw);
     }
 
+    // Extract and parse order date
+    const orderDateRaw = resolvedHeaders.createdTime ? row[resolvedHeaders.createdTime] : null;
+    const orderDate = parseOrderDate(orderDateRaw, "TikTok");
+
     products.add(productName);
     variants.add(variantName);
 
@@ -469,6 +557,7 @@ export function parseTikTokProductSales(
       rowNo,
       provinceRaw: provinceRaw || null,
       provinceNormalized: provinceNormalized || null,
+      orderDate: orderDate || null,
       raw: row
     });
   });
@@ -534,6 +623,7 @@ export function parseLazadaProductSales(
     confirmedCount: number;
     returnedCount: number;
     rowNo: number;
+    orderDate: string | null;
     raw: Record<string, unknown>;
   };
 
@@ -571,6 +661,10 @@ export function parseLazadaProductSales(
     const productName = mappedName ?? sellerSku;
     const variantName = productName;
 
+    // Extract and parse order date
+    const orderDateRaw = resolvedHeaders.createTime ? row[resolvedHeaders.createTime] : null;
+    const orderDate = parseOrderDate(orderDateRaw, "Lazada");
+
     const key = `${orderItemId}::${sellerSku}`;
     const existing = groups.get(key);
     if (!existing) {
@@ -583,6 +677,7 @@ export function parseLazadaProductSales(
         confirmedCount: statusRaw === "confirmed" ? 1 : 0,
         returnedCount: statusRaw === "returned" ? 1 : 0,
         rowNo,
+        orderDate: orderDate || null,
         raw: row
       });
     } else {
@@ -594,6 +689,10 @@ export function parseLazadaProductSales(
       }
       // keep earliest row number as representative
       existing.rowNo = Math.min(existing.rowNo, rowNo);
+      // Update order date if not set
+      if (!existing.orderDate && orderDate) {
+        existing.orderDate = orderDate;
+      }
     }
 
     products.add(productName);
@@ -611,6 +710,7 @@ export function parseLazadaProductSales(
     rowNo: g.rowNo,
     provinceRaw: null,
     provinceNormalized: null,
+    orderDate: g.orderDate,
     raw: g.raw
   }));
 

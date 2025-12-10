@@ -80,26 +80,31 @@ src/
 │   │   ├── Modal.tsx
 │   │   └── Icons.tsx
 │   ├── admin/
-│   │   └── AdminNav.tsx     # Admin navigation component
+│   │   ├── AdminNav.tsx     # Admin navigation component
+│   │   ├── ProductCard.tsx  # Product card with image display
+│   │   ├── ProductImageUpload.tsx # Product image upload UI
+│   │   ├── AddProductModal.tsx    # Add new product modal
+│   │   └── EditProductModal.tsx   # Edit product modal
 │   ├── Navbar.tsx           # Main navigation component
 │   ├── NavbarPublic.tsx     # Public section navbar
 │   ├── NavbarAdmin.tsx      # Admin section navbar
+│   ├── AnimatedSection.tsx  # Scroll animation wrapper component
 │   ├── GlassBackdrop.tsx    # Glass morphism backdrop component
 │   ├── ThailandMapD3.tsx    # D3.js Thailand map visualization
 │   ├── ThailandProvinceTables.tsx # Province sales tables
 │   ├── ProvinceAliasManager.tsx # Province alias management UI
 │   ├── ThemeBridge.tsx      # Theme context bridge
-│   └── Goals/               # Goal-related UI components
-│       ├── GoalsHeroPerformant.tsx
-│       ├── MonthlyModalGlassmorphism.tsx
-│       ├── MonthlyModalMinimalist.tsx
-│       ├── MonthlyModalCyberpunk.tsx
-│       └── MonthlyModalApple.tsx
+│   ├── GoalsHeroPerformant.tsx
+│   ├── MonthlyModalGlassmorphism.tsx
+│   ├── MonthlyModalMinimalist.tsx
+│   ├── MonthlyModalCyberpunk.tsx
+│   └── MonthlyModalApple.tsx
 ├── lib/                     # Business logic and utilities
 │   ├── supabaseClient.ts   # Supabase admin client
 │   ├── transactionParser.ts # Excel parsing logic for all platforms
 │   ├── productSales.ts     # Shopee/TikTok product sales parser
 │   ├── metrics.ts          # Metrics aggregation functions
+│   ├── cache.ts            # In-memory API response cache (use Redis/Vercel KV in production)
 │   ├── mockData.ts         # Mock data for development/fallback
 │   ├── database.types.ts   # Generated Supabase types
 │   ├── theme.ts            # Theme management (light/dark mode)
@@ -120,6 +125,8 @@ src/
 │       ├── currency.ts     # Currency formatting
 │       ├── date.ts         # Date formatting and normalization
 │       └── number.ts       # Number parsing and calculations
+├── hooks/
+│   └── useScrollAnimation.ts # Scroll animation hook for AnimatedSection
 └── tests/                  # Jest test files
     ├── metrics.test.ts     # Metrics aggregation tests
     └── transactionParser.test.ts # Parser tests
@@ -326,6 +333,7 @@ The app requires Supabase configuration to function; it will show an error scree
 - CSS Variables: All styling uses CSS custom properties defined in `src/app/globals.css`
 - Theme Modes: Supports light/dark themes via `src/lib/theme.ts` with `setTheme()` and `toggleTheme()` functions
 - Glass Morphism: Uses backdrop blur effects for modern UI (`GlassBackdrop.tsx`)
+- Scroll Animations: GPU-accelerated scroll animations using Intersection Observer (`AnimatedSection.tsx` + `useScrollAnimation.ts` hook)
 - Responsive Design: Mobile-first approach with responsive breakpoints
 - Component Library: Custom UI components in `src/components/ui/` (Card, Button, Badge, Modal, Icons)
 - Icons: Uses Lucide React for consistent icon set
@@ -350,8 +358,9 @@ The app requires Supabase configuration to function; it will show an error scree
 
 **Table: `product_master`**
 - Primary key: `id` (UUID)
-- Columns: `product_code` (unique), `product_name`, `category`, `is_active`, `created_at`, `updated_at`
-- Stores internal product master data with product codes, names, and categories
+- Columns: `product_code` (unique), `product_name` (alias: `name`), `category`, `is_active`, `image_url`, `created_at`, `updated_at`
+- Stores internal product master data with product codes, names, categories, and product images
+- Product images stored in Supabase Storage `product-images` bucket (max 5MB, formats: JPG, PNG, WebP)
 
 **Table: `product_code_map`**
 - Primary key: `id` (UUID)
@@ -391,9 +400,23 @@ The app requires Supabase configuration to function; it will show an error scree
 - Columns: `id`, `platform`, `column_name`, `category`, `subcategory`, `description`, `is_active`, `created_at`
 - Stores column mapping configuration for dynamic parser updates (legacy/future use)
 
-**Storage: `uploads` bucket**
-- File path format: `{platform}/{timestamp}-{filename}`
-- Stores raw Excel files for audit trail
+**Storage Buckets:**
+- `uploads` bucket:
+  - File path format: `{platform}/{timestamp}-{filename}`
+  - Stores raw Excel transaction files for audit trail
+- `product-images` bucket:
+  - File path format: `{product_id}-{timestamp}.{ext}`
+  - Stores product images (max 5MB per file)
+  - Allowed formats: JPG, PNG, WebP
+  - Public access with cache control (3600s)
+
+**Supabase RPC Functions:**
+The application uses Postgres RPC (Remote Procedure Calls) for optimized dashboard queries:
+- `dashboard_top_products(p_platform, p_start, p_end)` - Aggregates top products by revenue/quantity
+- `dashboard_top_provinces(p_platform, p_start, p_end)` - Aggregates top provinces by revenue/quantity
+- `dashboard_top_platforms(p_start, p_end)` - Aggregates top product per platform
+
+These RPC functions provide significant performance improvements over client-side aggregation, especially with large datasets.
 
 For performance optimization, see `SUPABASE_INDEXES.md` which provides recommended indexes for common query patterns.
 
@@ -403,7 +426,10 @@ For performance optimization, see `SUPABASE_INDEXES.md` which provides recommend
 - `/` - Main dashboard showing platform metrics, revenue, fees, trends
 - `/product-sales` - Product sales analysis by internal product code (multi-platform)
 - `/thailand-map` - Geographic sales visualization with D3.js Thailand map
-- `/admin` - Admin dashboard with file upload UI, recent uploads, and goals management
+- `/admin` - Admin dashboard with card navigation to all admin features
+- `/admin/uploads` - Upload Center (Platform Data + Product Sales + Upload History)
+- `/admin/goals` - Goals Management (set and track monthly revenue/profit goals)
+- `/admin/provinces` - Province Alias Manager (manage 77 Thai province name aliases)
 - `/admin/product-map` - Product master data and code mapping management
 
 **API Endpoints:**
@@ -416,6 +442,9 @@ For performance optimization, see `SUPABASE_INDEXES.md` which provides recommend
 - Product Master:
   - `GET/POST/PUT/DELETE /api/product-master` - CRUD operations
   - `POST /api/product-master/import` - Bulk import from Excel
+  - `POST /api/product-master/upload-image` - Upload product image to Supabase Storage
+  - `DELETE /api/product-master/upload-image` - Delete product image
+  - `POST /api/product-master/preview` - Preview product master import
   - `GET /api/product-master/template` - Download Excel template
 - Product Code Map:
   - `GET/POST/PUT/DELETE /api/product-code-map` - CRUD operations
@@ -428,6 +457,8 @@ For performance optimization, see `SUPABASE_INDEXES.md` which provides recommend
   - `GET /api/province-aliases/export` - Export aliases to Excel
 - Geographic Data:
   - `GET /api/sales-by-province` - Aggregate sales data by province
+- Dashboard Analytics:
+  - `GET /api/dashboard/top` - Get top products, provinces, and platforms (uses Supabase RPC for performance)
 - Goals:
   - `GET/POST/PUT/DELETE /api/goals` - CRUD operations with query params (year, month, platform, type)
 
@@ -560,6 +591,13 @@ After uploading, `platform_metrics` are recalculated from ALL transactions in th
 
 ### Performance Optimization
 - For large datasets, Supabase queries should use pagination (`.range()`) to avoid 1000-row REST limit
+- Dashboard analytics use Postgres RPC functions (`dashboard_top_products`, `dashboard_top_provinces`, `dashboard_top_platforms`) for server-side aggregation instead of fetching all rows
+- **API Response Caching**: `src/lib/cache.ts` provides in-memory caching for API responses (default 60s TTL)
+  - Used by `/api/dashboard/top` to cache dashboard analytics
+  - Production: Replace with Redis or Vercel KV for multi-instance deployments
+  - Cache utilities: `cached()` wrapper, `getCacheKey()` generator, `apiCache.clear()` invalidation
 - Recommended indexes are documented in `SUPABASE_INDEXES.md`
 - Province sales aggregation uses efficient grouping queries in `src/app/api/sales-by-province/route.ts`
 - Thailand map uses memoization and efficient D3.js rendering for smooth performance
+- Scroll animations use GPU-accelerated CSS transforms and Intersection Observer for 60fps performance
+- Product images are cached with a 1-hour cache control header for faster loading
