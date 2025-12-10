@@ -5,7 +5,7 @@
 
 import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseClient";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 
 const SESSION_COOKIE_NAME = "dashboard_session";
