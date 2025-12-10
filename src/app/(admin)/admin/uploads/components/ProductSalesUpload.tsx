@@ -39,7 +39,7 @@ const currency = (value: number) =>
   `฿${value.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function ProductSalesUpload() {
-  const [platform, setPlatform] = useState<"Shopee" | "TikTok">("Shopee");
+  const [platform, setPlatform] = useState<"Shopee" | "TikTok" | "Lazada">("Shopee");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ProductPreview | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -49,7 +49,8 @@ export default function ProductSalesUpload() {
 
   const platforms = [
     { value: "Shopee" as const, label: "Shopee", color: "from-orange-500 to-red-500", bg: "bg-orange-50" },
-    { value: "TikTok" as const, label: "TikTok", color: "from-pink-500 to-purple-500", bg: "bg-pink-50" }
+    { value: "TikTok" as const, label: "TikTok", color: "from-pink-500 to-purple-500", bg: "bg-pink-50" },
+    { value: "Lazada" as const, label: "Lazada", color: "from-blue-500 to-indigo-500", bg: "bg-blue-50" }
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,7 +136,7 @@ export default function ProductSalesUpload() {
         <label className="block text-sm font-semibold text-slate-700 mb-3">
           เลือกแพลตฟอร์ม
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {platforms.map((p) => (
             <button
               key={p.value}

@@ -642,7 +642,7 @@ function StickyFilterBar({
           right: 0,
           left: isMobile ? 0 : "auto",
           width: isMobile ? "100%" : PANEL_WIDTH,
-          height: isMobile ? "auto" : `calc(100% - ${NAV_OFFSET}px)`,
+          height: isMobile ? "auto" : `calc(100vh - ${NAV_OFFSET})`,
           zIndex: 1200,
           transform: overlayVisible
             ? "translateX(0)"
@@ -659,6 +659,8 @@ function StickyFilterBar({
           padding: "1.5rem",
           maxWidth: isMobile ? "1600px" : PANEL_WIDTH,
           margin: isMobile ? "0 auto" : "0 0 0 auto",
+          minHeight: isMobile ? undefined : `calc(100vh - ${NAV_OFFSET})`,
+          height: isMobile ? "auto" : `calc(100vh - ${NAV_OFFSET})`,
           background: isDarkMode
             ? "linear-gradient(135deg, rgba(15, 20, 32, 0.98) 0%, rgba(10, 14, 26, 0.98) 100%)"
             : "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)",
@@ -669,7 +671,7 @@ function StickyFilterBar({
             : "0 20px 60px rgba(59,130,246,0.18), 0 0 30px rgba(14,165,233,0.16)",
           borderRadius: isMobile ? "0 0 20px 20px" : "24px 0 0 24px",
           overflowY: "auto",
-          maxHeight: isMobile ? undefined : `calc(100vh - ${NAV_OFFSET}px - 12px)`,
+          maxHeight: isMobile ? undefined : `calc(100vh - ${NAV_OFFSET} - 12px)`,
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", gap: "1rem", flexWrap: "wrap" }}>
             <div>
@@ -4305,6 +4307,11 @@ export default function DashboardClient({ platforms, goals }: Props) {
     return platforms
       .filter((p) => platformFilter === "all" || p.platform === platformFilter)
       .map((p) => {
+        const originalRevenue = p.revenue;
+        const originalFees = p.fees;
+        const originalRevenueGroups = p.revenueGroups;
+        const originalFeeGroups = p.feeGroups;
+
         const baseDays = (dateBasis === "payment"
           ? (p.perDayPaid && p.perDayPaid.length > 0 ? p.perDayPaid : p.perDay)
           : p.perDay) || [];
@@ -4322,6 +4329,43 @@ export default function DashboardClient({ platforms, goals }: Props) {
 
         const trendWindow = filteredDays.slice(-7);
 
+        const hasDateFilter = Boolean(dateStart || dateEnd);
+
+        const rebuildRevenueGroups = () => {
+          if (!hasDateFilter) return p.revenueGroups;
+          if (originalRevenueGroups && originalRevenueGroups.length > 0 && originalRevenue) {
+            const ratio = originalRevenue !== 0 ? agg.revenue / originalRevenue : 0;
+            return originalRevenueGroups.map((group) => ({
+              ...group,
+              items: group.items.map((item) => ({
+                ...item,
+                value: Number(item.value || 0) * ratio
+              }))
+            }));
+          }
+          // Fallback single summary item
+          return agg.revenue !== 0
+            ? [{ title: "รายได้ทั้งหมด (ตามช่วงวันที่)", items: [{ label: "รวมช่วงวันที่ที่เลือก", value: agg.revenue }] }]
+            : p.revenueGroups;
+        };
+
+        const rebuildFeeGroups = () => {
+          if (!hasDateFilter) return p.feeGroups;
+          if (originalFeeGroups && originalFeeGroups.length > 0 && originalFees) {
+            const ratio = originalFees !== 0 ? agg.fees / originalFees : 0;
+            return originalFeeGroups.map((group) => ({
+              ...group,
+              items: group.items.map((item) => ({
+                ...item,
+                value: Number(item.value || 0) * ratio
+              }))
+            }));
+          }
+          return agg.fees !== 0
+            ? [{ title: "ค่าธรรมเนียมทั้งหมด (ตามช่วงวันที่)", items: [{ label: "รวมช่วงวันที่ที่เลือก", value: agg.fees }] }]
+            : p.feeGroups;
+        };
+
         return {
           ...p,
           perDay: filteredDays,
@@ -4331,6 +4375,8 @@ export default function DashboardClient({ platforms, goals }: Props) {
           settlement: agg.revenue + agg.fees + agg.adjustments,
           trend: trendWindow.map((d) => d.revenue + d.fees + d.adjustments),
           trendDates: trendWindow.map((d) => d.date),
+          revenueGroups: rebuildRevenueGroups(),
+          feeGroups: rebuildFeeGroups()
         };
       });
   }, [platformFilter, dateStart, dateEnd, dateBasis, platforms]);

@@ -220,7 +220,7 @@ export function ThailandMapClient({ salesData, initialStartDate, initialEndDate 
           right: 0,
           left: isMobile ? 0 : "auto",
           width: isMobile ? "100%" : PANEL_WIDTH,
-          height: isMobile ? "auto" : `calc(100% - ${NAV_OFFSET}px)`,
+          height: isMobile ? "auto" : `calc(100vh - ${NAV_OFFSET}px)`,
           zIndex: 1200,
           transform: overlayVisible
             ? "translateX(0)"
@@ -237,6 +237,8 @@ export function ThailandMapClient({ salesData, initialStartDate, initialEndDate 
           padding: "1.5rem",
           maxWidth: isMobile ? "1600px" : PANEL_WIDTH,
           margin: isMobile ? "0 auto" : "0 0 0 auto",
+          minHeight: isMobile ? undefined : `calc(100vh - ${NAV_OFFSET}px)`,
+          height: isMobile ? "auto" : `calc(100vh - ${NAV_OFFSET}px)`,
           background: isDark
             ? "linear-gradient(135deg, rgba(15, 20, 32, 0.98) 0%, rgba(10, 14, 26, 0.98) 100%)"
             : "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)",

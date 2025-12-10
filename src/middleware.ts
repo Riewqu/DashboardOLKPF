@@ -3,6 +3,7 @@ import { apiRateLimiter, authRateLimiter, uploadRateLimiter, getClientIp, create
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isPublicFile = pathname.match(/\.[^/]+$/) !== null;
 
   // 🚦 Rate Limiting for API routes
   if (pathname.startsWith("/api/")) {
@@ -35,10 +36,20 @@ export async function middleware(request: NextRequest) {
 
   // 🔒 Authentication check for non-API routes
   // Public paths that don't require authentication
-  const publicPaths = ["/login", "/_next", "/favicon.ico", "/icon-192.png", "/icon-512.png", "/manifest.json", "/sw.js"];
+  const publicPaths = [
+    "/login",
+    "/_next",
+    "/favicon.ico",
+    "/icon-192.png",
+    "/icon-512.png",
+    "/manifest.json",
+    "/sw.js",
+    "/workbox-",
+    "/logokpf.png"
+  ];
 
-  // Check if path is public
-  if (publicPaths.some(path => pathname.startsWith(path))) {
+  // Allow static assets (images, json, js, css, etc.) to bypass auth so the login page can load its logo and PWA files
+  if (isPublicFile || publicPaths.some(path => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 

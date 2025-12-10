@@ -24,6 +24,7 @@ export type ProductSaleView = {
   platforms?: string[]; // New: array of platforms this product is sold on
   upload_id?: string;
   created_at?: string | null;
+  order_date?: string | null;
   image_url?: string | null; // Product image from product_master
 };
 
@@ -185,6 +186,7 @@ export async function fetchProductSales(options: FetchProductSalesOptions = {}):
     variant_name: string | null;
     variant_code: string | null;
     order_id?: string | null;
+    order_date?: string | null;
     qty_confirmed: number;
     qty_returned?: number;
     revenue_confirmed_thb: number;
@@ -210,6 +212,7 @@ export async function fetchProductSales(options: FetchProductSalesOptions = {}):
         variant_name,
         variant_code,
         order_id,
+        order_date,
         qty_confirmed,
         qty_returned,
         revenue_confirmed_thb,
@@ -223,25 +226,27 @@ export async function fetchProductSales(options: FetchProductSalesOptions = {}):
   const queryFallback = () =>
     supabaseAdmin!
       .from("product_sales")
-      .select("id, platform, product_name, variant_name, variant_code, order_id, qty_confirmed, qty_returned, revenue_confirmed_thb, upload_id, created_at")
+      .select("id, platform, product_name, variant_name, variant_code, order_id, order_date, qty_confirmed, qty_returned, revenue_confirmed_thb, upload_id, created_at")
       .order("created_at", { ascending: false });
 
-  const buildQuery = (factory: typeof baseQuery) => {
+  const buildQuery = (factory: typeof baseQuery, applyDateFilters = true) => {
     let query = factory();
     if (platform) query = query.eq("platform", platform);
     if (uploadIds.length > 0) query = query.in("upload_id", uploadIds);
-    if (startDate) query = query.gte("order_date", startDate);
-    if (endDate) query = query.lte("order_date", endDate);
+    if (applyDateFilters) {
+      if (startDate) query = query.gte("order_date", startDate);
+      if (endDate) query = query.lte("order_date", endDate);
+    }
     return query;
   };
 
-  const fetchPaged = async (factory: typeof baseQuery) => {
+  const fetchPaged = async (factory: typeof baseQuery, applyDateFilters = true) => {
     const rows: ProductSaleRowWithJoin[] = [];
     let offset = 0;
     while (true) {
       const pageSize = effectiveLimit ? Math.min(PAGE_SIZE, Math.max(0, effectiveLimit - offset)) : PAGE_SIZE;
       if (pageSize === 0) break;
-      const res = await buildQuery(factory).range(offset, offset + pageSize - 1);
+      const res = await buildQuery(factory, applyDateFilters).range(offset, offset + pageSize - 1);
       if (res.error) return { data: rows, error: res.error };
       rows.push(...(res.data ?? []));
       if (!res.data || res.data.length < pageSize) break;
@@ -255,6 +260,28 @@ export async function fetchProductSales(options: FetchProductSalesOptions = {}):
   const res = await fetchPaged(baseQuery);
   data = res.data;
   error = res.error;
+
+  // If a date filter was applied and we got nothing (Shopee exports sometimes miss parsed order_date), retry without DB date filter then filter in memory
+  if ((startDate || endDate) && !error && data.length === 0) {
+    console.warn("⚠️ fetchProductSales: no rows after DB date filter, retrying without date filter and filtering in app", {
+      platform,
+      startDate,
+      endDate
+    });
+    const resNoDate = await fetchPaged(baseQuery, false);
+    data = resNoDate.data;
+    error = resNoDate.error;
+
+    if (!error && (startDate || endDate)) {
+      data = data.filter((row) => {
+        if (!row.order_date) return false;
+        const d = row.order_date;
+        if (startDate && d < startDate) return false;
+        if (endDate && d > endDate) return false;
+        return true;
+      });
+    }
+  }
 
   // ถ้า JOIN ไม่ได้ (foreign key ไม่มี) ให้ fallback แบบเดิม
   if (error && (String(error.message || "").includes("foreign key") || String(error.message || "").includes("column"))) {
@@ -302,6 +329,16 @@ export async function fetchProductSales(options: FetchProductSalesOptions = {}):
     return [];
   }
 
+  // If we retried without DB date filter and still got data, ensure in-memory date filtering applied consistently
+  if ((startDate || endDate) && data.length > 0) {
+    data = data.filter((row) => {
+      if (!row.order_date) return true; // keep rows without order_date to avoid dropping older data unexpectedly
+      if (startDate && row.order_date < startDate) return false;
+      if (endDate && row.order_date > endDate) return false;
+      return true;
+    });
+  }
+
   // Log statistics
   const withImages = data.filter((row) => row.product_master?.image_url).length;
   const totalProducts = new Set(data.map((row) => row.product_name).filter(Boolean)).size;
@@ -323,6 +360,7 @@ export async function fetchProductSales(options: FetchProductSalesOptions = {}):
     platforms: row.platform ? [row.platform] : [],
     upload_id: row.upload_id ?? undefined,
     created_at: row.created_at ?? null,
+    order_date: (row as any).order_date ?? null,
     image_url: row.product_master?.image_url ?? null
   }));
 
